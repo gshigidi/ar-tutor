@@ -530,18 +530,18 @@
     AR Resistor Tutor
   </div>
   <div style="font-size:13px; color:#5a7a99; text-align:center; margin-bottom:36px; line-height:1.6; max-width:300px;">
-    An adaptive AI tutor powered by Claude.<br/>Enter your Anthropic API key to begin.
+    An adaptive AI tutor powered by Gemini.<br/>Enter your Google AI API key to begin.
   </div>
 
   <!-- Key input -->
   <div style="width:100%; max-width:360px; margin-bottom:10px;">
     <div style="font-family:'Share Tech Mono',monospace; font-size:10px; color:#5a7a99; letter-spacing:2px; margin-bottom:8px;">
-      ANTHROPIC API KEY
+      GOOGLE AI API KEY
     </div>
     <input
       id="api-key-input"
       type="password"
-      placeholder="sk-ant-api03-..."
+      placeholder="AIza..."
       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
       style="
         width:100%; padding:14px 16px;
@@ -584,15 +584,16 @@
 
   <!-- Privacy note -->
   <div style="margin-top:24px; font-size:11px; color:#3a5a70; text-align:center; max-width:300px; line-height:1.7;">
-    Your key is never stored, never sent anywhere except directly to Anthropic's API, and is erased when you close this tab.
+    Your key is never stored, never sent anywhere except directly to Google's API, and is erased when you close this tab.
   </div>
 </div>
 
 <!-- ── Application Logic ──────────────────────────────────────── -->
 <script>
   // ── Config ────────────────────────────────────────────────────
-  let CLAUDE_API_KEY = ''; // Set at runtime via setup screen — never hardcoded
-  const MODEL        = 'claude-sonnet-4-20250514';
+  let GEMINI_API_KEY = ''; // Set at runtime via setup screen — never hardcoded
+  const MODEL        = 'gemini-2.0-flash';
+  const API_URL      = () => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
   // ── Setup screen logic ────────────────────────────────────────
   function toggleKeyVisibility() {
@@ -604,18 +605,18 @@
     const key = document.getElementById('api-key-input').value.trim();
     const err = document.getElementById('key-error');
 
-    if (!key.startsWith('sk-ant-')) {
-      err.textContent = '⚠ Invalid key format. Claude keys start with sk-ant-';
+    if (!key.startsWith('AIza')) {
+      err.textContent = '⚠ Invalid key format. Google AI keys start with AIza';
       err.style.display = 'block';
       return;
     }
-    if (key.length < 80) {
+    if (key.length < 30) {
       err.textContent = '⚠ Key seems too short. Please check and try again.';
       err.style.display = 'block';
       return;
     }
 
-    CLAUDE_API_KEY = key;
+    GEMINI_API_KEY = key;
     document.getElementById('api-key-input').value = ''; // Clear from DOM immediately
     document.getElementById('setup-screen').style.display = 'none';
   }
@@ -678,19 +679,19 @@
 
     input.value = '';
     appendMessage(text, 'user');
-    chatHistory.push({ role: 'user', content: text });
+    chatHistory.push({ role: 'user', parts: [{ text }] });
 
     setWaiting(true);
     const typingEl = appendMessage('···', 'ai typing');
 
     try {
-      const reply = await callClaude();
+      const reply = await callGemini();
       typingEl.remove();
       appendMessage(reply, 'ai');
-      chatHistory.push({ role: 'assistant', content: reply });
+      chatHistory.push({ role: 'model', parts: [{ text: reply }] });
     } catch (err) {
       typingEl.remove();
-      appendMessage('⚠ Could not reach the AI service. Check your connection or API key.', 'ai');
+      appendMessage(`⚠ Error: ${err.message}`, 'ai');
       console.error(err);
     }
 
@@ -702,23 +703,15 @@
     if (e.key === 'Enter') sendMessage();
   });
 
-  // ── Claude API ────────────────────────────────────────────────
-  async function callClaude() {
-    const systemPrompt = buildSystemPrompt();
-
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+  // ── Gemini API ────────────────────────────────────────────────
+  async function callGemini() {
+    const res = await fetch(API_URL(), {
       method: 'POST',
-      headers: {
-        'Content-Type':      'application/json',
-        'x-api-key':         CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-allow-browser': 'true'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model:      MODEL,
-        max_tokens: 512,
-        system:     systemPrompt,
-        messages:   chatHistory
+        system_instruction: { parts: [{ text: buildSystemPrompt() }] },
+        contents: chatHistory,
+        generationConfig: { maxOutputTokens: 512, temperature: 0.7 }
       })
     });
 
@@ -727,8 +720,8 @@
       throw new Error(`API ${res.status}: ${err}`);
     }
 
-    const data  = await res.json();
-    let reply   = data.content?.[0]?.text ?? 'No response.';
+    const data = await res.json();
+    let reply  = data.candidates?.[0]?.content?.parts?.[0]?.text ?? 'No response.';
 
     // Parse level update
     const tag = 'LEVEL_UPDATE:';
