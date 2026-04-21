@@ -1,367 +1,686 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>AR Resistor Tutor</title>
-
-  <!-- A-Frame & AR.js -->
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <title>XR Framework Demo</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-
   <style>
-    /* ── Design system ─────────────────────────────────────── */
-    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;700&display=swap');
 
     :root {
-      --bg:        #070d1a;
-      --surface:   rgba(10, 20, 45, 0.92);
-      --border:    rgba(0, 200, 255, 0.25);
-      --accent:    #00c8ff;
-      --accent2:   #00ff9d;
-      --danger:    #ff4d6d;
-      --text:      #cde8f5;
-      --text-dim:  #5a7a99;
-      --user-bg:   rgba(0, 200, 255, 0.12);
-      --ai-bg:     rgba(0, 255, 157, 0.08);
-      --radius:    12px;
-      --mono:      'Share Tech Mono', monospace;
-      --sans:      'Exo 2', sans-serif;
+      --bg:       #070d1a;
+      --surface:  rgba(10,20,45,0.95);
+      --border:   rgba(0,200,255,0.22);
+      --accent:   #00c8ff;
+      --accent2:  #00ff9d;
+      --accent3:  #ff9d00;
+      --danger:   #ff4d6d;
+      --text:     #cde8f5;
+      --dim:      #5a7a99;
+      --user-bg:  rgba(0,200,255,0.12);
+      --ai-bg:    rgba(0,255,157,0.08);
+      --r:        12px;
+      --mono:     'Share Tech Mono', monospace;
+      --sans:     'Exo 2', sans-serif;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: var(--sans);
-      background: var(--bg);
-      color: var(--text);
-      height: 100dvh;
-      overflow: hidden;
+      background: var(--bg); color: var(--text);
+      height: 100dvh; overflow: hidden;
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* ── AR Scene ───────────────────────────────────────────── */
+    /* ═══════════════════════════════════════════════
+       SHARED SCREEN STYLES
+    ═══════════════════════════════════════════════ */
+    .screen {
+      position: fixed; inset: 0; z-index: 50;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; overflow-y: auto;
+      padding: 28px 20px 40px;
+    }
+    .screen.hidden { display: none; }
+
+    .screen-logo {
+      font-family: var(--mono); font-size: 11px;
+      letter-spacing: 4px; color: var(--accent);
+      text-shadow: 0 0 12px var(--accent);
+      margin-bottom: 28px; align-self: flex-start;
+    }
+    .screen-icon { font-size: 44px; margin-bottom: 16px; }
+    .screen-title {
+      font-size: 22px; font-weight: 700; color: #fff;
+      margin-bottom: 6px; text-align: center;
+    }
+    .screen-sub {
+      font-size: 13px; color: var(--dim);
+      text-align: center; margin-bottom: 28px;
+      line-height: 1.6; max-width: 320px;
+    }
+
+    /* Form elements */
+    .field { width: 100%; max-width: 400px; margin-bottom: 14px; }
+    .field-label {
+      font-family: var(--mono); font-size: 10px;
+      color: var(--dim); letter-spacing: 2px;
+      text-transform: uppercase; margin-bottom: 6px;
+    }
+    .field input, .field textarea, .field select {
+      width: 100%; padding: 12px 14px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text); font-family: var(--sans); font-size: 14px;
+      outline: none; transition: border-color 0.2s;
+      resize: vertical;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus {
+      border-color: var(--accent);
+    }
+    .field input::placeholder, .field textarea::placeholder { color: var(--dim); }
+    .field select option { background: #0a141f; }
+
+    .btn {
+      width: 100%; max-width: 400px;
+      padding: 13px; border-radius: 10px;
+      font-family: var(--mono); font-size: 12px;
+      letter-spacing: 2px; cursor: pointer;
+      transition: all 0.2s; border: 1px solid;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, rgba(0,200,255,0.15), rgba(0,255,157,0.08));
+      border-color: var(--accent); color: var(--accent);
+      text-shadow: 0 0 8px var(--accent);
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.03);
+      border-color: var(--border); color: var(--dim);
+    }
+    .btn-instructor {
+      background: linear-gradient(135deg, rgba(255,157,0,0.15), rgba(255,77,109,0.08));
+      border-color: var(--accent3); color: var(--accent3);
+      text-shadow: 0 0 8px var(--accent3);
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+    .error-msg {
+      color: var(--danger); font-family: var(--mono); font-size: 11px;
+      margin-bottom: 10px; text-align: center; display: none;
+    }
+    .divider {
+      width: 100%; max-width: 400px;
+      border: none; border-top: 1px solid var(--border);
+      margin: 18px 0;
+    }
+    .note {
+      font-size: 11px; color: #3a5a70;
+      text-align: center; max-width: 320px;
+      line-height: 1.7; margin-top: 16px;
+    }
+
+    /* ═══════════════════════════════════════════════
+       INSTRUCTOR PANEL EXTRAS
+    ═══════════════════════════════════════════════ */
+    .section-header {
+      width: 100%; max-width: 400px;
+      font-family: var(--mono); font-size: 10px;
+      color: var(--accent3); letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 10px; margin-top: 4px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255,157,0,0.2);
+    }
+    .component-tag {
+      display: inline-block;
+      background: rgba(255,157,0,0.1);
+      border: 1px solid rgba(255,157,0,0.3);
+      border-radius: 4px; padding: 2px 8px;
+      font-family: var(--mono); font-size: 10px;
+      color: var(--accent3); margin: 2px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .component-tag.selected {
+      background: rgba(255,157,0,0.25);
+      border-color: var(--accent3);
+    }
+    #components-row { width: 100%; max-width: 400px; margin-bottom: 14px; flex-wrap: wrap; display: flex; }
+
+    /* ═══════════════════════════════════════════════
+       STUDENT LOGIN EXTRAS
+    ═══════════════════════════════════════════════ */
+    .profile-card {
+      width: 100%; max-width: 400px;
+      background: rgba(0,255,157,0.05);
+      border: 1px solid rgba(0,255,157,0.2);
+      border-radius: var(--r); padding: 14px 16px;
+      margin-bottom: 16px; display: none;
+    }
+    .profile-card .name {
+      font-size: 16px; font-weight: 700; color: #fff;
+      margin-bottom: 4px;
+    }
+    .profile-card .meta {
+      font-family: var(--mono); font-size: 11px; color: var(--accent2);
+    }
+
+    /* ═══════════════════════════════════════════════
+       SCENARIO LOADING SCREEN
+    ═══════════════════════════════════════════════ */
+    #scenario-screen {
+      justify-content: center; gap: 0;
+    }
+    .loading-ring {
+      width: 80px; height: 80px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 24px;
+    }
+    #loading-step {
+      font-family: var(--mono); font-size: 12px;
+      color: var(--accent); letter-spacing: 2px;
+      text-align: center; margin-bottom: 8px;
+    }
+    #loading-detail {
+      font-size: 13px; color: var(--dim);
+      text-align: center; max-width: 280px;
+      line-height: 1.6;
+    }
+    .loading-steps {
+      width: 100%; max-width: 320px;
+      margin-top: 32px; display: flex;
+      flex-direction: column; gap: 10px;
+    }
+    .lstep {
+      display: flex; align-items: center; gap: 12px;
+      font-family: var(--mono); font-size: 11px; color: var(--dim);
+      padding: 8px 12px;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 8px; transition: all 0.3s;
+    }
+    .lstep.active { color: var(--accent); border-color: var(--accent); background: rgba(0,200,255,0.05); }
+    .lstep.done   { color: var(--accent2); border-color: rgba(0,255,157,0.3); }
+    .lstep .dot   { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+    /* ═══════════════════════════════════════════════
+       AR SCENE
+    ═══════════════════════════════════════════════ */
     a-scene { position: fixed; inset: 0; z-index: 0; }
 
-    /* ── HUD overlay ────────────────────────────────────────── */
+    /* ═══════════════════════════════════════════════
+       HUD
+    ═══════════════════════════════════════════════ */
     #hud {
       position: fixed; inset: 0; z-index: 10;
       display: flex; flex-direction: column;
       pointer-events: none;
     }
-
-    /* Top bar */
     #topbar {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 18px;
-      background: linear-gradient(to bottom, rgba(7,13,26,0.95), transparent);
+      padding: 12px 16px;
+      background: linear-gradient(to bottom, rgba(7,13,26,0.97), transparent);
       pointer-events: auto;
     }
-    #topbar .logo {
-      font-family: var(--mono);
-      font-size: 13px; letter-spacing: 3px;
-      color: var(--accent);
-      text-shadow: 0 0 12px var(--accent);
-    }
-    #level-badge {
+    .topbar-left { display: flex; flex-direction: column; gap: 2px; }
+    .topbar-logo {
       font-family: var(--mono); font-size: 11px;
-      padding: 4px 12px; border-radius: 20px;
+      letter-spacing: 3px; color: var(--accent);
+      text-shadow: 0 0 10px var(--accent);
+    }
+    #student-name-hud {
+      font-size: 11px; color: var(--dim);
+    }
+    .topbar-right { display: flex; align-items: center; gap: 8px; }
+    #level-badge {
+      font-family: var(--mono); font-size: 10px;
+      padding: 3px 10px; border-radius: 20px;
       border: 1px solid var(--accent2);
-      color: var(--accent2);
-      background: rgba(0,255,157,0.08);
+      color: var(--accent2); background: rgba(0,255,157,0.08);
       text-shadow: 0 0 8px var(--accent2);
       transition: all 0.4s;
     }
+    #task-counter {
+      font-family: var(--mono); font-size: 10px;
+      padding: 3px 10px; border-radius: 20px;
+      border: 1px solid rgba(255,157,0,0.4);
+      color: var(--accent3); background: rgba(255,157,0,0.08);
+    }
 
-    /* Scan reticle */
+    /* Task panel */
+    #task-panel {
+      position: fixed; top: 70px; left: 0; right: 0;
+      padding: 0 12px;
+      pointer-events: none; z-index: 11;
+    }
+    #task-card {
+      background: var(--surface);
+      border: 1px solid rgba(255,157,0,0.3);
+      border-radius: var(--r); padding: 12px 14px;
+      backdrop-filter: blur(16px);
+      display: none;
+      box-shadow: 0 0 30px rgba(255,157,0,0.08);
+    }
+    #task-card.visible { display: block; }
+    .task-label {
+      font-family: var(--mono); font-size: 9px;
+      color: var(--accent3); letter-spacing: 2px;
+      margin-bottom: 5px;
+    }
+    #task-text { font-size: 13px; color: var(--text); line-height: 1.5; }
+
+    /* Reticle */
     #reticle {
-      flex: 1;
-      display: flex; align-items: center; justify-content: center;
+      flex: 1; display: flex;
+      align-items: center; justify-content: center;
       flex-direction: column; gap: 12px;
     }
     #reticle-ring {
-      width: 180px; height: 180px;
-      border: 2px solid rgba(0,200,255,0.4);
-      border-radius: 50%;
-      position: relative;
+      width: 160px; height: 160px;
+      border: 2px solid rgba(0,200,255,0.35);
+      border-radius: 50%; position: relative;
       animation: pulse 2s ease-in-out infinite;
     }
-    #reticle-ring::before, #reticle-ring::after {
-      content: '';
-      position: absolute; inset: 10px;
-      border-radius: 50%;
-    }
-    #reticle-ring::before {
-      border: 1px solid rgba(0,200,255,0.2);
-    }
     #reticle-ring::after {
+      content: ''; position: absolute; inset: 10px;
+      border-radius: 50%;
       border: 1px dashed rgba(0,255,157,0.15);
       animation: spin 8s linear infinite;
     }
-    /* Corner brackets */
-    #reticle-ring .corner {
-      position: absolute; width: 20px; height: 20px;
-      border-color: var(--accent);
-      border-style: solid;
-    }
-    .corner.tl { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
-    .corner.tr { top: -1px; right: -1px; border-width: 2px 2px 0 0; }
-    .corner.bl { bottom: -1px; left: -1px; border-width: 0 0 2px 2px; }
-    .corner.br { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
-
+    .corner { position: absolute; width: 18px; height: 18px; border-color: var(--accent); border-style: solid; }
+    .corner.tl { top:-1px; left:-1px;   border-width: 2px 0 0 2px; }
+    .corner.tr { top:-1px; right:-1px;  border-width: 2px 2px 0 0; }
+    .corner.bl { bottom:-1px; left:-1px;  border-width: 0 0 2px 2px; }
+    .corner.br { bottom:-1px; right:-1px; border-width: 0 2px 2px 0; }
     #scan-label {
-      font-family: var(--mono); font-size: 11px;
-      color: var(--text-dim); letter-spacing: 2px;
-      text-transform: uppercase;
+      font-family: var(--mono); font-size: 10px;
+      color: var(--dim); letter-spacing: 2px; text-transform: uppercase;
     }
 
-    /* Detected info card */
+    /* Info card */
     #info-card {
-      position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
-      width: min(340px, 90vw);
+      position: fixed; top: 130px; left: 50%; transform: translateX(-50%);
+      width: min(340px, 92vw);
       background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      backdrop-filter: blur(16px);
-      padding: 16px 20px;
-      display: none;
-      pointer-events: auto;
-      box-shadow: 0 0 40px rgba(0,200,255,0.1), inset 0 1px 0 rgba(255,255,255,0.05);
+      border: 1px solid var(--border); border-radius: var(--r);
+      backdrop-filter: blur(16px); padding: 14px 16px;
+      display: none; pointer-events: auto;
+      box-shadow: 0 0 40px rgba(0,200,255,0.08),
+                  inset 0 1px 0 rgba(255,255,255,0.04);
       animation: slideDown 0.3s ease;
     }
     #info-card.visible { display: block; }
 
     .info-header {
-      display: flex; align-items: center; gap: 12px;
-      margin-bottom: 14px;
-      padding-bottom: 12px;
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 12px; padding-bottom: 10px;
       border-bottom: 1px solid var(--border);
     }
-    .component-icon {
-      width: 40px; height: 40px;
+    .comp-icon {
+      width: 38px; height: 38px;
       background: rgba(0,200,255,0.1);
-      border: 1px solid var(--accent);
-      border-radius: 8px;
+      border: 1px solid var(--accent); border-radius: 8px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 20px;
+      font-size: 18px;
     }
-    .component-name {
-      font-size: 18px; font-weight: 700; color: #fff;
-      line-height: 1;
-    }
-    .component-sub {
-      font-family: var(--mono); font-size: 11px;
-      color: var(--accent); margin-top: 3px;
-    }
+    .comp-name { font-size: 17px; font-weight: 700; color: #fff; line-height: 1; }
+    .comp-sub  { font-family: var(--mono); font-size: 10px; color: var(--accent); margin-top: 2px; }
 
     .info-grid {
       display: grid; grid-template-columns: 1fr 1fr;
-      gap: 8px; margin-bottom: 14px;
+      gap: 6px; margin-bottom: 12px;
     }
     .info-item {
       background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 8px; padding: 8px 10px;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 7px; padding: 7px 9px;
     }
-    .info-item .label {
-      font-family: var(--mono); font-size: 9px;
-      color: var(--text-dim); letter-spacing: 1px;
-      text-transform: uppercase; margin-bottom: 3px;
-    }
-    .info-item .value {
-      font-size: 13px; font-weight: 500; color: #fff;
-    }
+    .info-item .lbl { font-family: var(--mono); font-size: 9px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px; }
+    .info-item .val { font-size: 13px; font-weight: 500; color: #fff; }
 
     /* Color bands */
-    .bands-row {
-      display: flex; gap: 4px; align-items: center;
-      margin-bottom: 14px;
+    .bands { display: flex; gap: 3px; margin-bottom: 12px; }
+    .band  { height: 26px; flex: 1; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1); }
+    .band-lbl { font-family: var(--mono); font-size: 8px; color: var(--dim); text-align: center; margin-top: 2px; }
+
+    /* AI-generated scenario description */
+    #scenario-desc {
+      background: rgba(0,255,157,0.05);
+      border: 1px solid rgba(0,255,157,0.15);
+      border-radius: 8px; padding: 10px 12px;
+      margin-bottom: 12px; display: none;
     }
-    .band {
-      height: 28px; flex: 1;
-      border-radius: 3px;
-      border: 1px solid rgba(255,255,255,0.1);
-    }
-    .band-label {
+    #scenario-desc .sd-label {
       font-family: var(--mono); font-size: 9px;
-      color: var(--text-dim); text-align: center; margin-top: 3px;
+      color: var(--accent2); letter-spacing: 1px; margin-bottom: 4px;
     }
+    #scenario-desc .sd-text { font-size: 12px; color: var(--text); line-height: 1.5; }
 
     #chat-toggle-btn {
-      width: 100%;
-      padding: 10px;
-      background: linear-gradient(135deg, rgba(0,200,255,0.15), rgba(0,255,157,0.08));
-      border: 1px solid var(--accent);
-      border-radius: 8px;
-      color: var(--accent);
-      font-family: var(--mono); font-size: 12px;
-      letter-spacing: 2px; text-transform: uppercase;
-      cursor: pointer;
-      transition: all 0.2s;
+      width: 100%; padding: 9px;
+      background: linear-gradient(135deg, rgba(0,200,255,0.12), rgba(0,255,157,0.06));
+      border: 1px solid var(--accent); border-radius: 8px;
+      color: var(--accent); font-family: var(--mono); font-size: 11px;
+      letter-spacing: 2px; cursor: pointer; transition: all 0.2s;
       text-shadow: 0 0 8px var(--accent);
     }
-    #chat-toggle-btn:active {
-      background: rgba(0,200,255,0.25);
-      transform: scale(0.98);
+    #chat-toggle-btn:active { background: rgba(0,200,255,0.2); transform: scale(0.98); }
+
+    /* Marker prompt */
+    #marker-prompt {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 7px 18px;
+      font-family: var(--mono); font-size: 10px;
+      color: var(--dim); letter-spacing: 1px;
+      pointer-events: none; white-space: nowrap;
+      animation: pulse 2s ease-in-out infinite;
     }
 
-    /* ── Chat panel ─────────────────────────────────────────── */
+    /* ═══════════════════════════════════════════════
+       CHAT PANEL
+    ═══════════════════════════════════════════════ */
     #chat-panel {
       position: fixed; bottom: 0; left: 0; right: 0;
-      height: 55dvh;
+      height: 58dvh;
       background: var(--surface);
       border-top: 1px solid var(--border);
       backdrop-filter: blur(20px);
       display: flex; flex-direction: column;
       transform: translateY(100%);
-      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-      z-index: 20;
-      pointer-events: auto;
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+      z-index: 20; pointer-events: auto;
     }
     #chat-panel.open { transform: translateY(0); }
 
     #chat-header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
     }
-    #chat-header .title {
-      font-family: var(--mono); font-size: 11px;
-      color: var(--accent); letter-spacing: 2px;
-    }
+    .chat-title { font-family: var(--mono); font-size: 10px; color: var(--accent); letter-spacing: 2px; }
     #close-chat {
       background: none; border: none;
-      color: var(--text-dim); font-size: 20px;
-      cursor: pointer; line-height: 1;
-      padding: 2px 6px;
+      color: var(--dim); font-size: 18px; cursor: pointer; padding: 2px 6px;
     }
 
+    /* Tab bar */
+    #chat-tabs {
+      display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .tab {
+      flex: 1; padding: 8px; text-align: center;
+      font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
+      color: var(--dim); cursor: pointer; transition: all 0.2s;
+      border-bottom: 2px solid transparent;
+    }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* Tab content */
+    .tab-content { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+    .tab-content.active { display: flex; }
+
     #messages {
-      flex: 1; overflow-y: auto;
-      padding: 12px 14px;
-      display: flex; flex-direction: column; gap: 10px;
+      flex: 1; overflow-y: auto; padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 8px;
       scroll-behavior: smooth;
     }
     #messages::-webkit-scrollbar { width: 3px; }
-    #messages::-webkit-scrollbar-track { background: transparent; }
     #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
     .msg {
-      max-width: 88%;
-      padding: 10px 13px;
-      border-radius: var(--radius);
-      font-size: 13.5px; line-height: 1.5;
+      max-width: 88%; padding: 9px 12px;
+      border-radius: var(--r); font-size: 13px; line-height: 1.5;
       animation: msgIn 0.2s ease;
     }
     .msg.user {
       align-self: flex-end;
-      background: var(--user-bg);
-      border: 1px solid rgba(0,200,255,0.2);
-      border-bottom-right-radius: 3px;
-      color: #e0f4ff;
+      background: var(--user-bg); border: 1px solid rgba(0,200,255,0.2);
+      border-bottom-right-radius: 3px; color: #e0f4ff;
     }
     .msg.ai {
       align-self: flex-start;
-      background: var(--ai-bg);
-      border: 1px solid rgba(0,255,157,0.15);
-      border-bottom-left-radius: 3px;
-      color: #d0f0e8;
+      background: var(--ai-bg); border: 1px solid rgba(0,255,157,0.15);
+      border-bottom-left-radius: 3px; color: #d0f0e8;
     }
-    .msg.typing {
-      color: var(--text-dim);
-      font-family: var(--mono); font-size: 18px;
-      letter-spacing: 4px;
-      animation: blink 1s step-end infinite;
+    .msg.system {
+      align-self: center; max-width: 100%;
+      background: rgba(255,157,0,0.08); border: 1px solid rgba(255,157,0,0.2);
+      color: var(--accent3); font-family: var(--mono); font-size: 11px;
+      text-align: center; border-radius: 8px;
     }
+    .msg.typing { color: var(--dim); font-family: var(--mono); font-size: 18px; letter-spacing: 4px; animation: blink 1s step-end infinite; }
 
     #input-row {
-      display: flex; gap: 8px;
-      padding: 10px 12px;
-      border-top: 1px solid var(--border);
-      flex-shrink: 0;
+      display: flex; gap: 8px; padding: 8px 10px;
+      border-top: 1px solid var(--border); flex-shrink: 0;
     }
     #user-input {
-      flex: 1;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 14px;
-      color: var(--text);
-      font-family: var(--sans); font-size: 14px;
-      outline: none;
+      flex: 1; background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 9px 12px; color: var(--text);
+      font-family: var(--sans); font-size: 13px; outline: none;
       transition: border-color 0.2s;
     }
     #user-input:focus { border-color: var(--accent); }
-    #user-input::placeholder { color: var(--text-dim); }
-
+    #user-input::placeholder { color: var(--dim); }
     #send-btn {
       background: linear-gradient(135deg, var(--accent), var(--accent2));
       border: none; border-radius: 8px;
-      width: 44px; height: 44px;
-      cursor: pointer;
+      width: 42px; height: 42px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      font-size: 18px;
-      transition: opacity 0.2s, transform 0.1s;
-      flex-shrink: 0;
+      font-size: 16px; transition: opacity 0.2s, transform 0.1s; flex-shrink: 0;
     }
     #send-btn:disabled { opacity: 0.4; cursor: default; }
-    #send-btn:not(:disabled):active { transform: scale(0.93); }
+    #send-btn:not(:disabled):active { transform: scale(0.92); }
 
-    /* Marker prompt overlay */
-    #marker-prompt {
-      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-      background: var(--surface);
+    /* Profile tab */
+    #profile-tab {
+      padding: 14px; overflow-y: auto; gap: 10px;
+    }
+    .profile-section {
+      background: rgba(255,255,255,0.03);
       border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 8px 20px;
-      font-family: var(--mono); font-size: 11px;
-      color: var(--text-dim); letter-spacing: 1px;
-      pointer-events: none;
-      white-space: nowrap;
-      animation: pulse 2s ease-in-out infinite;
+      border-radius: var(--r); padding: 12px 14px;
     }
+    .ps-label {
+      font-family: var(--mono); font-size: 9px;
+      color: var(--dim); letter-spacing: 2px;
+      text-transform: uppercase; margin-bottom: 8px;
+    }
+    .ps-value { font-size: 14px; font-weight: 500; color: #fff; }
+    .progress-bar {
+      height: 6px; background: rgba(255,255,255,0.06);
+      border-radius: 3px; overflow: hidden; margin-top: 8px;
+    }
+    .progress-fill {
+      height: 100%; background: linear-gradient(to right, var(--accent), var(--accent2));
+      border-radius: 3px; transition: width 0.5s ease;
+    }
+    .task-list { display: flex; flex-direction: column; gap: 6px; }
+    .task-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: var(--dim);
+      padding: 6px 8px;
+      background: rgba(255,255,255,0.02);
+      border-radius: 6px;
+    }
+    .task-item.done { color: var(--accent2); }
+    .task-item .tick { font-size: 14px; }
 
-    /* ── Animations ─────────────────────────────────────────── */
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-    @keyframes slideDown {
-      from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
-      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-    }
-    @keyframes msgIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.2; }
-    }
+    /* ═══════════════════════════════════════════════
+       ANIMATIONS
+    ═══════════════════════════════════════════════ */
+    @keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:.5} }
+    @keyframes spin    { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+    @keyframes slideDown { from{opacity:0;transform:translateX(-50%) translateY(-10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+    @keyframes msgIn   { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes blink   { 0%,100%{opacity:1} 50%{opacity:.2} }
 
-    /* Scan line effect on body */
     body::after {
-      content: '';
-      position: fixed; inset: 0;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0,0,0,0.03) 2px,
-        rgba(0,0,0,0.03) 4px
-      );
-      pointer-events: none; z-index: 5;
+      content:''; position:fixed; inset:0; pointer-events:none; z-index:5;
+      background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
     }
   </style>
 </head>
 <body>
 
-<!-- ── AR Scene ──────────────────────────────────────────────── -->
+<!-- ════════════════════════════════════════════════
+     SCREEN 1 — API KEY SETUP
+════════════════════════════════════════════════ -->
+<div id="key-screen" class="screen">
+  <div class="screen-logo">◈ XR·FRAMEWORK·DEMO</div>
+  <div class="screen-icon">🔑</div>
+  <div class="screen-title">Enter API Key</div>
+  <div class="screen-sub">Powered by Google Gemini. Your key is stored in session memory only and never transmitted except to Google's API.</div>
+
+  <div class="field">
+    <div class="field-label">Google AI API Key</div>
+    <input id="api-key-input" type="password" placeholder="AIza..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+  </div>
+  <div style="width:100%;max-width:400px;display:flex;align-items:center;gap:8px;margin-bottom:20px;">
+    <input type="checkbox" id="show-key" onchange="document.getElementById('api-key-input').type=this.checked?'text':'password'" style="accent-color:var(--accent);width:14px;height:14px;">
+    <label for="show-key" style="font-size:12px;color:var(--dim);cursor:pointer;">Show key</label>
+  </div>
+  <div id="key-error" class="error-msg"></div>
+  <button class="btn btn-primary" style="margin-bottom:12px;" onclick="submitKey()">CONTINUE ◈</button>
+  <div class="note">Get a free key at aistudio.google.com</div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SCREEN 2 — ROLE SELECTION
+════════════════════════════════════════════════ -->
+<div id="role-screen" class="screen hidden">
+  <div class="screen-logo">◈ XR·FRAMEWORK·DEMO</div>
+  <div class="screen-icon">👤</div>
+  <div class="screen-title">Who are you?</div>
+  <div class="screen-sub">Select your role to continue.</div>
+
+  <button class="btn btn-instructor" style="margin-bottom:12px;" onclick="showScreen('instructor-screen')">
+    🎓 &nbsp; INSTRUCTOR — Set up experiment
+  </button>
+  <button class="btn btn-primary" onclick="showScreen('student-screen')">
+    📱 &nbsp; STUDENT — Start AR session
+  </button>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SCREEN 3 — INSTRUCTOR PANEL
+════════════════════════════════════════════════ -->
+<div id="instructor-screen" class="screen hidden">
+  <div class="screen-logo">◈ INSTRUCTOR PANEL</div>
+  <div class="screen-icon">🎓</div>
+  <div class="screen-title">Knowledge Base Setup</div>
+  <div class="screen-sub">Define the experiment. GenAI will use this to build the scenario and assess students.</div>
+
+  <div class="section-header">① EXPERIMENT DEFINITION</div>
+
+  <div class="field">
+    <div class="field-label">Experiment Title</div>
+    <input id="exp-title" type="text" placeholder="e.g. Resistor Colour Code Lab" value="Resistor Colour Code Lab"/>
+  </div>
+  <div class="field">
+    <div class="field-label">Experiment Description</div>
+    <textarea id="exp-desc" rows="3" placeholder="Describe the experiment and what the student should do...">Students will examine a physical resistor using the AR app, identify its value from colour bands, and apply Ohm's Law to calculate current and voltage in a simple circuit.</textarea>
+  </div>
+  <div class="field">
+    <div class="field-label">Learning Outcomes</div>
+    <textarea id="exp-outcomes" rows="3" placeholder="List the learning outcomes...">1. Read a 4-band resistor colour code accurately.
+2. Apply Ohm's Law (V=IR) to solve circuit problems.
+3. Explain the role of tolerance in component selection.</textarea>
+  </div>
+
+  <div class="section-header">② COMPONENTS / ASSETS</div>
+  <div class="field-label" style="width:100%;max-width:400px;margin-bottom:8px;">Select components involved in this experiment:</div>
+  <div id="components-row">
+    <span class="component-tag selected" onclick="toggleTag(this)">Resistor (4.7kΩ)</span>
+    <span class="component-tag" onclick="toggleTag(this)">LED</span>
+    <span class="component-tag" onclick="toggleTag(this)">Capacitor</span>
+    <span class="component-tag" onclick="toggleTag(this)">Breadboard</span>
+    <span class="component-tag" onclick="toggleTag(this)">Power Supply</span>
+    <span class="component-tag" onclick="toggleTag(this)">Multimeter</span>
+    <span class="component-tag" onclick="toggleTag(this)">Oscilloscope</span>
+  </div>
+
+  <div class="section-header">③ ASSESSMENT CRITERIA</div>
+  <div class="field">
+    <div class="field-label">Tasks / Questions to assess</div>
+    <textarea id="exp-tasks" rows="4" placeholder="List tasks the AI should guide and assess students on...">Task 1: Identify the resistor value from the colour bands shown in AR.
+Task 2: Calculate the current if connected to a 9V supply.
+Task 3: Explain what the gold tolerance band means.
+Task 4: Suggest a real circuit application for this resistor.</textarea>
+  </div>
+  <div class="field">
+    <div class="field-label">Default Difficulty</div>
+    <select id="exp-difficulty">
+      <option value="Beginner">Beginner — simple language, guided hints</option>
+      <option value="Intermediate" selected>Intermediate — standard terminology</option>
+      <option value="Expert">Expert — technical depth, design challenges</option>
+    </select>
+  </div>
+
+  <hr class="divider"/>
+  <button class="btn btn-instructor" style="margin-bottom:10px;" onclick="saveKnowledgeBase()">💾 &nbsp; SAVE KNOWLEDGE BASE</button>
+  <button class="btn btn-secondary" onclick="showScreen('role-screen')">← BACK</button>
+  <div id="kb-saved" style="display:none;margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--accent2);text-align:center;">✓ Knowledge base saved successfully</div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SCREEN 4 — STUDENT LOGIN
+════════════════════════════════════════════════ -->
+<div id="student-screen" class="screen hidden">
+  <div class="screen-logo">◈ STUDENT LOGIN</div>
+  <div class="screen-icon">📱</div>
+  <div class="screen-title">Student Login</div>
+  <div class="screen-sub">Enter your details to load your profile and begin the AR session.</div>
+
+  <div class="field">
+    <div class="field-label">Student Name</div>
+    <input id="student-name" type="text" placeholder="e.g. Ahmed Al-Rashid" autocomplete="name"/>
+  </div>
+  <div class="field">
+    <div class="field-label">Student ID</div>
+    <input id="student-id" type="text" placeholder="e.g. S20241234" autocomplete="off"/>
+  </div>
+
+  <!-- Returning student profile card -->
+  <div id="returning-card" class="profile-card">
+    <div class="name" id="returning-name"></div>
+    <div class="meta" id="returning-meta"></div>
+  </div>
+
+  <div id="login-error" class="error-msg"></div>
+  <button class="btn btn-primary" style="margin-bottom:12px;" onclick="studentLogin()">▶ &nbsp; START AR SESSION</button>
+  <button class="btn btn-secondary" onclick="showScreen('role-screen')">← BACK</button>
+  <div class="note">Your progress is saved for this session. Returning students will have their profile automatically loaded.</div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SCREEN 5 — SCENARIO GENERATION (LOADING)
+════════════════════════════════════════════════ -->
+<div id="scenario-screen" class="screen hidden">
+  <div class="loading-ring"></div>
+  <div id="loading-step">INITIALISING FRAMEWORK</div>
+  <div id="loading-detail">Please wait while the system prepares your session...</div>
+  <div class="loading-steps">
+    <div class="lstep" id="lstep-kb"><div class="dot"></div>Loading Knowledge Base</div>
+    <div class="lstep" id="lstep-profile"><div class="dot"></div>Retrieving Student Profile</div>
+    <div class="lstep" id="lstep-assets"><div class="dot"></div>Asset Manager — Preparing Components</div>
+    <div class="lstep" id="lstep-scenario"><div class="dot"></div>Scenario Manager — Generating Session</div>
+    <div class="lstep" id="lstep-ar"><div class="dot"></div>Launching AR Platform</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     AR SCENE
+════════════════════════════════════════════════ -->
 <a-scene
   embedded
   arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
@@ -369,282 +688,368 @@
   renderer="logarithmicDepthBuffer: true; antialias: true;"
   loading-screen="enabled: false">
 
-  <!-- Hiro marker — student prints this standard marker -->
   <a-marker preset="hiro" id="resistor-marker">
-    <!-- Floating info plane above the marker -->
-    <a-plane
-      position="0 0.01 0"
-      rotation="-90 0 0"
-      width="1.8" height="0.9"
-      color="#0a141f"
-      opacity="0.85"
-      side="double">
-    </a-plane>
-    <a-text
-      value="RESISTOR DETECTED"
-      position="0 0.02 0.25"
-      rotation="-90 0 0"
-      align="center"
-      color="#00c8ff"
-      width="3.5"
-      font="monoid">
-    </a-text>
-    <a-text
-      value="4.7 kΩ ± 5%"
-      position="0 0.02 -0.05"
-      rotation="-90 0 0"
-      align="center"
-      color="#ffffff"
-      width="4">
-    </a-text>
-    <a-text
-      value="Open chat to ask the AI tutor ↓"
-      position="0 0.02 -0.3"
-      rotation="-90 0 0"
-      align="center"
-      color="#00ff9d"
-      width="3">
-    </a-text>
+    <a-plane position="0 0.01 0" rotation="-90 0 0" width="1.9" height="1.0" color="#0a141f" opacity="0.88" side="double"></a-plane>
+    <a-text value="RESISTOR DETECTED" position="0 0.02 0.32" rotation="-90 0 0" align="center" color="#00c8ff" width="3.5"></a-text>
+    <a-text value="4.7 kΩ ± 5%" position="0 0.02 0.05" rotation="-90 0 0" align="center" color="#ffffff" width="4.2"></a-text>
+    <a-text id="ar-task-text" value="Open chat for your task ↓" position="0 0.02 -0.28" rotation="-90 0 0" align="center" color="#00ff9d" width="3.2"></a-text>
   </a-marker>
 
   <a-entity camera></a-entity>
 </a-scene>
 
-<!-- ── HUD ───────────────────────────────────────────────────── -->
-<div id="hud">
+<!-- ════════════════════════════════════════════════
+     HUD (shown during AR session)
+════════════════════════════════════════════════ -->
+<div id="hud" style="display:none;">
   <div id="topbar">
-    <div class="logo">◈ AR·TUTOR</div>
-    <div id="level-badge">⬡ BEGINNER</div>
+    <div class="topbar-left">
+      <div class="topbar-logo">◈ XR·TUTOR</div>
+      <div id="student-name-hud"></div>
+    </div>
+    <div class="topbar-right">
+      <div id="task-counter">TASK 0/0</div>
+      <div id="level-badge">⬡ BEGINNER</div>
+    </div>
   </div>
-
+  <div id="task-panel">
+    <div id="task-card">
+      <div class="task-label">◈ CURRENT TASK</div>
+      <div id="task-text">Loading task...</div>
+    </div>
+  </div>
   <div id="reticle">
     <div id="reticle-ring">
-      <div class="corner tl"></div>
-      <div class="corner tr"></div>
-      <div class="corner bl"></div>
-      <div class="corner br"></div>
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
     </div>
     <div id="scan-label">point at hiro marker</div>
   </div>
 </div>
 
-<!-- Info card (shown when marker detected) -->
+<!-- Info card -->
 <div id="info-card">
   <div class="info-header">
-    <div class="component-icon">⏚</div>
+    <div class="comp-icon">⏚</div>
     <div>
-      <div class="component-name">Resistor</div>
-      <div class="component-sub">PASSIVE · TWO-TERMINAL</div>
+      <div class="comp-name">Resistor</div>
+      <div class="comp-sub">PASSIVE · TWO-TERMINAL</div>
     </div>
   </div>
-
   <div class="info-grid">
-    <div class="info-item">
-      <div class="label">Resistance</div>
-      <div class="value">4.7 kΩ</div>
-    </div>
-    <div class="info-item">
-      <div class="label">Tolerance</div>
-      <div class="value">± 5%</div>
-    </div>
-    <div class="info-item">
-      <div class="label">Power Rating</div>
-      <div class="value">0.25 W</div>
-    </div>
-    <div class="info-item">
-      <div class="label">Type</div>
-      <div class="value">Carbon Film</div>
-    </div>
+    <div class="info-item"><div class="lbl">Resistance</div><div class="val">4.7 kΩ</div></div>
+    <div class="info-item"><div class="lbl">Tolerance</div><div class="val">± 5%</div></div>
+    <div class="info-item"><div class="lbl">Power Rating</div><div class="val">0.25 W</div></div>
+    <div class="info-item"><div class="lbl">Type</div><div class="val">Carbon Film</div></div>
   </div>
-
-  <!-- Color band visualization -->
-  <div>
-    <div class="bands-row">
-      <div style="text-align:center; flex:1">
-        <div class="band" style="background:#ffff00"></div>
-        <div class="band-label">4</div>
-      </div>
-      <div style="text-align:center; flex:1">
-        <div class="band" style="background:#9b59b6"></div>
-        <div class="band-label">7</div>
-      </div>
-      <div style="text-align:center; flex:1">
-        <div class="band" style="background:#ff0000"></div>
-        <div class="band-label">×100</div>
-      </div>
-      <div style="text-align:center; flex:1">
-        <div class="band" style="background:#c0c0c0; width:6px; flex:0 0 6px"></div>
-        <div class="band-label" style="font-size:7px">gap</div>
-      </div>
-      <div style="text-align:center; flex:1">
-        <div class="band" style="background:#d4a017"></div>
-        <div class="band-label">±5%</div>
-      </div>
-    </div>
+  <div class="bands">
+    <div style="text-align:center;flex:1"><div class="band" style="background:#ffff00"></div><div class="band-lbl">Yellow=4</div></div>
+    <div style="text-align:center;flex:1"><div class="band" style="background:#9b59b6"></div><div class="band-lbl">Violet=7</div></div>
+    <div style="text-align:center;flex:1"><div class="band" style="background:#ff0000"></div><div class="band-lbl">Red=×100</div></div>
+    <div style="text-align:center;flex:0 0 8px"><div class="band" style="background:#c0c0c0;width:6px"></div><div class="band-lbl" style="font-size:7px">gap</div></div>
+    <div style="text-align:center;flex:1"><div class="band" style="background:#d4a017"></div><div class="band-lbl">Gold=±5%</div></div>
   </div>
-
-  <button id="chat-toggle-btn" onclick="toggleChat()">◈ ASK AI TUTOR</button>
+  <!-- AI-generated scenario description -->
+  <div id="scenario-desc">
+    <div class="sd-label">◈ SCENARIO MANAGER</div>
+    <div id="sd-text" class="sd-text"></div>
+  </div>
+  <button id="chat-toggle-btn" onclick="toggleChat()">◈ AI TUTOR &amp; TASKS</button>
 </div>
 
-<!-- Marker prompt -->
-<div id="marker-prompt">print & scan the hiro marker</div>
+<div id="marker-prompt">print &amp; scan the hiro marker</div>
 
-<!-- ── Chat Panel ─────────────────────────────────────────────── -->
+<!-- ════════════════════════════════════════════════
+     CHAT PANEL
+════════════════════════════════════════════════ -->
 <div id="chat-panel">
   <div id="chat-header">
-    <div class="title">◈ AI TUTOR — ADAPTIVE MODE</div>
+    <div class="chat-title">◈ INTELLIGENT PEDAGOGICAL LAYER</div>
     <button id="close-chat" onclick="toggleChat()">✕</button>
   </div>
-  <div id="messages"></div>
-  <div id="input-row">
-    <input
-      id="user-input"
-      type="text"
-      placeholder="Ask about this resistor..."
-      autocomplete="off"
-      autocorrect="off"
-    />
-    <button id="send-btn" onclick="sendMessage()">➤</button>
-  </div>
-</div>
-
-<!-- ── Setup Screen ───────────────────────────────────────────── -->
-<div id="setup-screen" style="
-  position: fixed; inset: 0; z-index: 100;
-  background: #070d1a;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  padding: 32px 24px; gap: 0;
-  font-family: 'Exo 2', sans-serif;
-">
-  <!-- Logo -->
-  <div style="font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:4px; color:#00c8ff; text-shadow:0 0 12px #00c8ff; margin-bottom:32px;">
-    ◈ AR·TUTOR
+  <div id="chat-tabs">
+    <div class="tab active" onclick="switchTab('chat')">💬 TUTOR</div>
+    <div class="tab" onclick="switchTab('profile')">👤 PROFILE</div>
   </div>
 
-  <!-- Icon -->
-  <div style="font-size:48px; margin-bottom:20px;">⏚</div>
-
-  <!-- Title -->
-  <div style="font-size:22px; font-weight:700; color:#fff; margin-bottom:8px; text-align:center;">
-    AR Resistor Tutor
-  </div>
-  <div style="font-size:13px; color:#5a7a99; text-align:center; margin-bottom:36px; line-height:1.6; max-width:300px;">
-    An adaptive AI tutor powered by Gemini.<br/>Enter your Google AI API key to begin.
-  </div>
-
-  <!-- Key input -->
-  <div style="width:100%; max-width:360px; margin-bottom:10px;">
-    <div style="font-family:'Share Tech Mono',monospace; font-size:10px; color:#5a7a99; letter-spacing:2px; margin-bottom:8px;">
-      GOOGLE AI API KEY
+  <!-- Chat tab -->
+  <div id="chat-tab" class="tab-content active">
+    <div id="messages"></div>
+    <div id="input-row">
+      <input id="user-input" type="text" placeholder="Ask about this resistor..." autocomplete="off" autocorrect="off"/>
+      <button id="send-btn" onclick="sendMessage()">➤</button>
     </div>
-    <input
-      id="api-key-input"
-      type="password"
-      placeholder="AIza..."
-      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-      style="
-        width:100%; padding:14px 16px;
-        background:rgba(255,255,255,0.04);
-        border:1px solid rgba(0,200,255,0.25);
-        border-radius:10px;
-        color:#cde8f5; font-family:'Share Tech Mono',monospace; font-size:13px;
-        outline:none;
-      "
-    />
   </div>
 
-  <!-- Show/hide toggle -->
-  <div style="width:100%; max-width:360px; display:flex; align-items:center; gap:8px; margin-bottom:28px;">
-    <input type="checkbox" id="show-key" onchange="toggleKeyVisibility()" style="accent-color:#00c8ff; width:14px; height:14px;">
-    <label for="show-key" style="font-size:12px; color:#5a7a99; cursor:pointer;">Show key</label>
-    <div style="flex:1"></div>
-    <div style="font-size:11px; color:#5a7a99;">Stored in session memory only</div>
-  </div>
-
-  <!-- Error message -->
-  <div id="key-error" style="
-    color:#ff4d6d; font-size:12px; font-family:'Share Tech Mono',monospace;
-    margin-bottom:14px; display:none; text-align:center;
-  "></div>
-
-  <!-- Start button -->
-  <button onclick="startApp()" style="
-    width:100%; max-width:360px;
-    padding:14px;
-    background: linear-gradient(135deg, rgba(0,200,255,0.15), rgba(0,255,157,0.08));
-    border:1px solid #00c8ff;
-    border-radius:10px;
-    color:#00c8ff; font-family:'Share Tech Mono',monospace;
-    font-size:13px; letter-spacing:3px;
-    cursor:pointer; text-shadow:0 0 8px #00c8ff;
-  ">
-    START SESSION ◈
-  </button>
-
-  <!-- Privacy note -->
-  <div style="margin-top:24px; font-size:11px; color:#3a5a70; text-align:center; max-width:300px; line-height:1.7;">
-    Your key is never stored, never sent anywhere except directly to Google's API, and is erased when you close this tab.
+  <!-- Profile tab -->
+  <div id="profile-tab" class="tab-content">
+    <div class="profile-section">
+      <div class="ps-label">Student</div>
+      <div class="ps-value" id="profile-name-display">—</div>
+    </div>
+    <div class="profile-section">
+      <div class="ps-label">Current Level</div>
+      <div class="ps-value" id="profile-level-display">Beginner</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="level-progress" style="width:33%"></div>
+      </div>
+    </div>
+    <div class="profile-section">
+      <div class="ps-label">Experiment</div>
+      <div class="ps-value" id="profile-exp-display">—</div>
+    </div>
+    <div class="profile-section">
+      <div class="ps-label">Task Progress</div>
+      <div id="task-list-display" class="task-list"></div>
+    </div>
   </div>
 </div>
 
-<!-- ── Application Logic ──────────────────────────────────────── -->
+<!-- ════════════════════════════════════════════════
+     APPLICATION LOGIC
+════════════════════════════════════════════════ -->
 <script>
-  // ── Config ────────────────────────────────────────────────────
-  let GEMINI_API_KEY = ''; // Set at runtime via setup screen — never hardcoded
-  const MODEL        = 'gemini-2.5-flash';
-  const API_URL      = () => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+// ── Global State ─────────────────────────────────────────────────
+let GEMINI_API_KEY  = '';
+const MODEL         = 'gemini-2.5-flash';
+const API_URL       = () => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
-  // ── Setup screen logic ────────────────────────────────────────
-  function toggleKeyVisibility() {
-    const input = document.getElementById('api-key-input');
-    input.type = document.getElementById('show-key').checked ? 'text' : 'password';
+// Knowledge base (set by instructor or defaults)
+let knowledgeBase = {
+  title:       'Resistor Colour Code Lab',
+  description: 'Students will examine a physical resistor using the AR app, identify its value from colour bands, and apply Ohm\'s Law to calculate current and voltage in a simple circuit.',
+  outcomes:    '1. Read a 4-band resistor colour code accurately.\n2. Apply Ohm\'s Law (V=IR) to solve circuit problems.\n3. Explain the role of tolerance in component selection.',
+  tasks:       'Task 1: Identify the resistor value from the colour bands shown in AR.\nTask 2: Calculate the current if connected to a 9V supply.\nTask 3: Explain what the gold tolerance band means.\nTask 4: Suggest a real circuit application for this resistor.',
+  components:  ['Resistor (4.7kΩ)'],
+  difficulty:  'Intermediate'
+};
+
+// Student profile
+let studentProfile = {
+  name:          '',
+  id:            '',
+  level:         'Beginner',
+  tasksTotal:    4,
+  tasksDone:     [],
+  sessionCount:  0,
+  chatHistory:   []
+};
+
+// All student profiles (simple in-memory store, keyed by ID)
+let allProfiles = {};
+
+// Session state
+let currentTaskIndex = 0;
+let taskList         = [];
+let isWaiting        = false;
+let chatOpen         = false;
+let scenarioText     = '';
+
+// ── Screen Navigation ─────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  const el = document.getElementById(id);
+  if (el) { el.classList.remove('hidden'); el.scrollTop = 0; }
+}
+
+// ── Screen 1: API Key ─────────────────────────────────────────────
+function submitKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  const err = document.getElementById('key-error');
+  if (!key.startsWith('AIza')) {
+    err.textContent = '⚠ Invalid key. Google AI keys start with AIza';
+    err.style.display = 'block'; return;
+  }
+  if (key.length < 30) {
+    err.textContent = '⚠ Key too short. Please check and try again.';
+    err.style.display = 'block'; return;
+  }
+  GEMINI_API_KEY = key;
+  document.getElementById('api-key-input').value = '';
+  err.style.display = 'none';
+  showScreen('role-screen');
+}
+document.getElementById('api-key-input').addEventListener('keydown', e => { if (e.key==='Enter') submitKey(); });
+
+// ── Screen 3: Instructor Panel ────────────────────────────────────
+function toggleTag(el) { el.classList.toggle('selected'); }
+
+function saveKnowledgeBase() {
+  const selected = [...document.querySelectorAll('.component-tag.selected')].map(t => t.textContent);
+  knowledgeBase = {
+    title:       document.getElementById('exp-title').value.trim()      || knowledgeBase.title,
+    description: document.getElementById('exp-desc').value.trim()       || knowledgeBase.description,
+    outcomes:    document.getElementById('exp-outcomes').value.trim()   || knowledgeBase.outcomes,
+    tasks:       document.getElementById('exp-tasks').value.trim()      || knowledgeBase.tasks,
+    components:  selected.length ? selected : knowledgeBase.components,
+    difficulty:  document.getElementById('exp-difficulty').value
+  };
+  document.getElementById('kb-saved').style.display = 'block';
+  setTimeout(() => document.getElementById('kb-saved').style.display = 'none', 3000);
+}
+
+// ── Screen 4: Student Login ───────────────────────────────────────
+document.getElementById('student-id').addEventListener('input', function() {
+  const id   = this.value.trim().toUpperCase();
+  const card = document.getElementById('returning-card');
+  if (allProfiles[id]) {
+    const p = allProfiles[id];
+    document.getElementById('returning-name').textContent = p.name;
+    document.getElementById('returning-meta').textContent =
+      `Level: ${p.level} · Sessions: ${p.sessionCount} · Tasks done: ${p.tasksDone.length}/${p.tasksTotal}`;
+    card.style.display = 'block';
+    document.getElementById('student-name').value = p.name;
+  } else {
+    card.style.display = 'none';
+  }
+});
+
+function studentLogin() {
+  const name = document.getElementById('student-name').value.trim();
+  const id   = document.getElementById('student-id').value.trim().toUpperCase();
+  const err  = document.getElementById('login-error');
+
+  if (!name || !id) {
+    err.textContent = '⚠ Please enter both name and student ID';
+    err.style.display = 'block'; return;
+  }
+  err.style.display = 'none';
+
+  // Load or create profile
+  if (allProfiles[id]) {
+    studentProfile = { ...allProfiles[id] };
+    studentProfile.sessionCount++;
+  } else {
+    studentProfile = {
+      name, id,
+      level:        knowledgeBase.difficulty,
+      tasksTotal:   knowledgeBase.tasks.split('\n').filter(t=>t.trim()).length,
+      tasksDone:    [],
+      sessionCount: 1,
+      chatHistory:  []
+    };
   }
 
-  function startApp() {
-    const key = document.getElementById('api-key-input').value.trim();
-    const err = document.getElementById('key-error');
+  allProfiles[id] = studentProfile;
+  showScreen('scenario-screen');
+  runScenarioGeneration();
+}
 
-    if (!key.startsWith('AIza')) {
-      err.textContent = '⚠ Invalid key format. Google AI keys start with AIza';
-      err.style.display = 'block';
-      return;
-    }
-    if (key.length < 30) {
-      err.textContent = '⚠ Key seems too short. Please check and try again.';
-      err.style.display = 'block';
-      return;
-    }
+// ── Screen 5: Scenario Generation ────────────────────────────────
+async function runScenarioGeneration() {
+  const steps = ['lstep-kb','lstep-profile','lstep-assets','lstep-scenario','lstep-ar'];
 
-    GEMINI_API_KEY = key;
-    document.getElementById('api-key-input').value = ''; // Clear from DOM immediately
-    document.getElementById('setup-screen').style.display = 'none';
+  async function step(id, label, detail, delay) {
+    document.getElementById('loading-step').textContent   = label;
+    document.getElementById('loading-detail').textContent = detail;
+    document.getElementById(id).classList.add('active');
+    await wait(delay);
+    document.getElementById(id).classList.remove('active');
+    document.getElementById(id).classList.add('done');
   }
 
-  // Allow Enter key on input
-  document.getElementById('api-key-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') startApp();
-  });
+  await step('lstep-kb',      'KNOWLEDGE BASE',     'Loading experiment: ' + knowledgeBase.title, 900);
+  await step('lstep-profile', 'STUDENT PROFILE',    `Welcome back, ${studentProfile.name}. Level: ${studentProfile.level}`, 800);
+  await step('lstep-assets',  'ASSET MANAGER',      'Preparing components: ' + knowledgeBase.components.join(', '), 900);
 
-  // ── State ─────────────────────────────────────────────────────
-  let studentLevel  = 'Beginner';
-  let chatHistory   = [];
-  let isWaiting     = false;
-  let markerVisible = false;
-  let chatOpen      = false;
+  // This is the real async step — GenAI generates the scenario
+  document.getElementById('loading-step').textContent   = 'SCENARIO MANAGER';
+  document.getElementById('loading-detail').textContent = 'GenAI is generating your personalised session...';
+  document.getElementById('lstep-scenario').classList.add('active');
 
-  // ── AR Marker detection ───────────────────────────────────────
+  taskList      = knowledgeBase.tasks.split('\n').filter(t => t.trim());
+  scenarioText  = await generateScenario();
+
+  document.getElementById('lstep-scenario').classList.remove('active');
+  document.getElementById('lstep-scenario').classList.add('done');
+
+  await step('lstep-ar', 'AR PLATFORM', 'Launching camera and marker tracking...', 700);
+
+  launchARSession();
+}
+
+async function generateScenario() {
+  const prompt = `You are the Scenario Manager of an XR educational framework.
+
+Knowledge Base:
+- Experiment: ${knowledgeBase.title}
+- Description: ${knowledgeBase.description}
+- Learning Outcomes: ${knowledgeBase.outcomes}
+- Tasks: ${knowledgeBase.tasks}
+- Components: ${knowledgeBase.components.join(', ')}
+
+Student Profile:
+- Name: ${studentProfile.name}
+- Level: ${studentProfile.level}
+- Session number: ${studentProfile.sessionCount}
+- Tasks previously completed: ${studentProfile.tasksDone.length > 0 ? studentProfile.tasksDone.join(', ') : 'none yet'}
+
+Generate a short personalised welcome message (2-3 sentences) for this student that:
+1. Acknowledges their level and prior progress if returning
+2. Briefly introduces today's experiment
+3. Tells them their first task
+
+Keep it friendly, concise, and suitable for a mobile screen.`;
+
+  try {
+    const res = await fetch(API_URL(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 200, temperature: 0.8 }
+      })
+    });
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text ?? 'Welcome! Scan the Hiro marker to begin.';
+  } catch {
+    return `Welcome, ${studentProfile.name}! Today you\'ll be exploring the ${knowledgeBase.title}. Point your camera at the Hiro marker to start.`;
+  }
+}
+
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── Launch AR Session ─────────────────────────────────────────────
+function launchARSession() {
+  // Hide all screens
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+
+  // Show HUD
+  document.getElementById('hud').style.display = 'flex';
+
+  // Populate HUD
+  document.getElementById('student-name-hud').textContent = studentProfile.name;
+  updateLevelBadge();
+  updateTaskCounter();
+
+  // Show task card with first task
+  if (taskList.length > 0) {
+    document.getElementById('task-card').classList.add('visible');
+    document.getElementById('task-text').textContent = taskList[currentTaskIndex] || '';
+    // Update AR overlay text
+    const arText = document.getElementById('ar-task-text');
+    if (arText) arText.setAttribute('value', taskList[0].substring(0,40) + '...');
+  }
+
+  // Populate profile tab
+  document.getElementById('profile-name-display').textContent = `${studentProfile.name} (${studentProfile.id})`;
+  document.getElementById('profile-level-display').textContent = studentProfile.level;
+  document.getElementById('profile-exp-display').textContent   = knowledgeBase.title;
+  renderTaskList();
+
+  // AR marker detection
   const marker = document.getElementById('resistor-marker');
-
   marker.addEventListener('markerFound', () => {
-    markerVisible = true;
     document.getElementById('info-card').classList.add('visible');
     document.getElementById('marker-prompt').style.display = 'none';
     document.getElementById('reticle').style.display = 'none';
+    // Show scenario description
+    if (scenarioText) {
+      document.getElementById('sd-text').textContent = scenarioText;
+      document.getElementById('scenario-desc').style.display = 'block';
+    }
   });
-
   marker.addEventListener('markerLost', () => {
-    markerVisible = false;
     if (!chatOpen) {
       document.getElementById('info-card').classList.remove('visible');
       document.getElementById('reticle').style.display = 'flex';
@@ -652,138 +1057,199 @@
     }
   });
 
-  // ── Chat toggle ───────────────────────────────────────────────
-  function toggleChat() {
-    chatOpen = !chatOpen;
-    document.getElementById('chat-panel').classList.toggle('open', chatOpen);
+  // Initial chat greeting (from scenario manager)
+  setTimeout(() => {
+    appendMessage(scenarioText, 'ai');
+    studentProfile.chatHistory.push({ role: 'model', parts: [{ text: scenarioText }] });
+  }, 500);
+}
 
-    // Show greeting on first open
-    if (chatOpen && chatHistory.length === 0) {
-      appendMessage(
-        "Hi! I can see you're looking at a 4.7 kΩ resistor. What would you like to know about it? I can explain how to read color bands, discuss Ohm's Law, or quiz you on resistor theory!",
-        'ai'
-      );
-    }
+// ── Chat ──────────────────────────────────────────────────────────
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chat-panel').classList.toggle('open', chatOpen);
+  if (chatOpen) setTimeout(() => document.getElementById('user-input').focus(), 400);
+}
 
-    if (chatOpen) {
-      setTimeout(() => document.getElementById('user-input').focus(), 400);
-    }
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
+  document.getElementById(`${tab}-tab`).classList.add('active');
+  if (tab === 'profile') renderTaskList();
+}
+
+document.getElementById('user-input').addEventListener('keydown', e => { if (e.key==='Enter') sendMessage(); });
+
+async function sendMessage() {
+  if (isWaiting) return;
+  const input = document.getElementById('user-input');
+  const text  = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  appendMessage(text, 'user');
+  studentProfile.chatHistory.push({ role: 'user', parts: [{ text }] });
+
+  setWaiting(true);
+  const typingEl = appendMessage('···', 'ai typing');
+
+  try {
+    const reply = await callGemini();
+    typingEl.remove();
+    appendMessage(reply, 'ai');
+    studentProfile.chatHistory.push({ role: 'model', parts: [{ text: reply }] });
+    allProfiles[studentProfile.id] = studentProfile; // persist
+  } catch (err) {
+    typingEl.remove();
+    appendMessage(`⚠ Error: ${err.message}`, 'ai');
   }
 
-  // ── Send message ──────────────────────────────────────────────
-  async function sendMessage() {
-    if (isWaiting) return;
-    const input = document.getElementById('user-input');
-    const text  = input.value.trim();
-    if (!text) return;
+  setWaiting(false);
+}
 
-    input.value = '';
-    appendMessage(text, 'user');
-    chatHistory.push({ role: 'user', parts: [{ text }] });
-
-    setWaiting(true);
-    const typingEl = appendMessage('···', 'ai typing');
-
-    try {
-      const reply = await callGemini();
-      typingEl.remove();
-      appendMessage(reply, 'ai');
-      chatHistory.push({ role: 'model', parts: [{ text: reply }] });
-    } catch (err) {
-      typingEl.remove();
-      appendMessage(`⚠ Error: ${err.message}`, 'ai');
-      console.error(err);
-    }
-
-    setWaiting(false);
-  }
-
-  // Enter key support
-  document.getElementById('user-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') sendMessage();
+async function callGemini() {
+  const res = await fetch(API_URL(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: buildSystemPrompt() }] },
+      contents: studentProfile.chatHistory,
+      generationConfig: { maxOutputTokens: 512, temperature: 0.7 }
+    })
   });
 
-  // ── Gemini API ────────────────────────────────────────────────
-  async function callGemini() {
-    const res = await fetch(API_URL(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: buildSystemPrompt() }] },
-        contents: chatHistory,
-        generationConfig: { maxOutputTokens: 512, temperature: 0.7 }
-      })
-    });
+  if (!res.ok) { const e = await res.text(); throw new Error(`API ${res.status}: ${e}`); }
 
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`API ${res.status}: ${err}`);
+  const data = await res.json();
+  let reply  = data.candidates?.[0]?.content?.parts?.[0]?.text ?? 'No response.';
+
+  // Parse level update
+  const lvlTag = 'LEVEL_UPDATE:';
+  const lvlIdx = reply.indexOf(lvlTag);
+  if (lvlIdx >= 0) {
+    const newLevel = reply.substring(lvlIdx + lvlTag.length).split('\n')[0].trim();
+    reply = reply.substring(0, lvlIdx).trimEnd();
+    if (['Beginner','Intermediate','Expert'].includes(newLevel) && newLevel !== studentProfile.level) {
+      studentProfile.level = newLevel;
+      allProfiles[studentProfile.id] = studentProfile;
+      updateLevelBadge();
+      appendMessage(`📊 Level updated to ${newLevel}`, 'system');
     }
-
-    const data = await res.json();
-    let reply  = data.candidates?.[0]?.content?.parts?.[0]?.text ?? 'No response.';
-
-    // Parse level update
-    const tag = 'LEVEL_UPDATE:';
-    const idx = reply.indexOf(tag);
-    if (idx >= 0) {
-      const newLevel = reply.substring(idx + tag.length).split('\n')[0].trim();
-      reply = reply.substring(0, idx).trimEnd();
-      if (['Beginner','Intermediate','Expert'].includes(newLevel) && newLevel !== studentLevel) {
-        studentLevel = newLevel;
-        updateLevelBadge();
-        appendMessage(`📊 Level updated to ${studentLevel}`, 'ai');
-      }
-    }
-
-    return reply;
   }
 
-  function buildSystemPrompt() {
-    const levelGuide = {
-      Beginner:     'The student is a beginner. Use very simple language and everyday analogies. Avoid jargon. Explain everything from scratch.',
-      Intermediate: 'The student has basic electronics knowledge. Use standard terminology but explain non-obvious concepts.',
-      Expert:       'The student is advanced. Use precise technical language, challenge them with deeper questions and real-world design implications.'
-    }[studentLevel];
-
-    return `You are an intelligent AR tutor embedded in an Augmented Reality app. The student is viewing a physical 4.7 kΩ carbon film resistor (yellow-violet-red-gold bands, ±5% tolerance, 0.25W rating) through their phone camera.
-
-Your role:
-1. Answer questions about this resistor, resistor theory, and related electronics concepts.
-2. Assess the student's knowledge through their responses.
-3. If you detect a different expertise level, end your response with exactly: LEVEL_UPDATE:Beginner or LEVEL_UPDATE:Intermediate or LEVEL_UPDATE:Expert
-4. Keep responses concise and mobile-friendly (3-5 sentences max).
-5. Occasionally ask a follow-up question to assess understanding.
-
-Current student level: ${studentLevel}
-${levelGuide}`;
+  // Parse task completion
+  const taskTag = 'TASK_COMPLETE:';
+  const taskIdx = reply.indexOf(taskTag);
+  if (taskIdx >= 0) {
+    const taskNum = parseInt(reply.substring(taskIdx + taskTag.length).split('\n')[0].trim());
+    reply = reply.substring(0, taskIdx).trimEnd();
+    if (!isNaN(taskNum)) markTaskDone(taskNum);
   }
 
-  // ── UI helpers ────────────────────────────────────────────────
-  function appendMessage(text, type) {
-    const msgs = document.getElementById('messages');
+  return reply;
+}
+
+function buildSystemPrompt() {
+  const levelGuide = {
+    Beginner:     'Use very simple language and everyday analogies. Avoid jargon. Give generous hints.',
+    Intermediate: 'Use standard electronics terminology. Explain non-obvious concepts briefly.',
+    Expert:       'Use precise technical language. Challenge the student with deeper design questions.'
+  }[studentProfile.level] || '';
+
+  const remainingTasks = taskList.filter((_,i) => !studentProfile.tasksDone.includes(i));
+
+  return `You are the Intelligent Pedagogical Agent of an XR educational framework. The student is viewing a physical 4.7 kΩ resistor (yellow-violet-red-gold, ±5%, 0.25W) through their AR camera.
+
+KNOWLEDGE BASE:
+Experiment: ${knowledgeBase.title}
+Description: ${knowledgeBase.description}
+Learning Outcomes: ${knowledgeBase.outcomes}
+
+STUDENT PROFILE:
+Name: ${studentProfile.name}
+Level: ${studentProfile.level}
+Tasks completed: ${studentProfile.tasksDone.length}/${taskList.length}
+Remaining tasks: ${remainingTasks.join(' | ')}
+
+YOUR ROLE:
+1. Guide the student through the remaining tasks above. Reference the current task explicitly.
+2. Answer questions about resistors and related electronics.
+3. Assess the student's knowledge through their responses.
+4. If you detect a different expertise level, add on a new line: LEVEL_UPDATE:Beginner or LEVEL_UPDATE:Intermediate or LEVEL_UPDATE:Expert
+5. When the student clearly and correctly completes a task, add on a new line: TASK_COMPLETE:<task_number> (e.g. TASK_COMPLETE:1)
+6. Keep responses concise for mobile (3-5 sentences max).
+7. Be encouraging and adaptive.
+
+Current level guidance: ${levelGuide}`;
+}
+
+// ── Task Management ───────────────────────────────────────────────
+function markTaskDone(taskNum) {
+  const idx = taskNum - 1;
+  if (!studentProfile.tasksDone.includes(idx) && idx < taskList.length) {
+    studentProfile.tasksDone.push(idx);
+    allProfiles[studentProfile.id] = studentProfile;
+    appendMessage(`✅ Task ${taskNum} complete!`, 'system');
+    // Advance to next task
+    const next = taskList.findIndex((_,i) => !studentProfile.tasksDone.includes(i));
+    if (next >= 0) {
+      currentTaskIndex = next;
+      document.getElementById('task-text').textContent = taskList[next];
+    } else {
+      document.getElementById('task-text').textContent = '🎉 All tasks complete!';
+      appendMessage('🎉 Excellent work! You have completed all tasks for this experiment.', 'system');
+    }
+    updateTaskCounter();
+    renderTaskList();
+  }
+}
+
+function renderTaskList() {
+  const container = document.getElementById('task-list-display');
+  container.innerHTML = '';
+  taskList.forEach((task, i) => {
+    const done = studentProfile.tasksDone.includes(i);
     const el   = document.createElement('div');
-    el.className = `msg ${type}`;
-    el.textContent = text;
-    msgs.appendChild(el);
-    msgs.scrollTop = msgs.scrollHeight;
-    return el;
-  }
+    el.className = `task-item${done ? ' done' : ''}`;
+    el.innerHTML = `<span class="tick">${done ? '✅' : '○'}</span><span>${task}</span>`;
+    container.appendChild(el);
+  });
+}
 
-  function setWaiting(w) {
-    isWaiting = w;
-    document.getElementById('send-btn').disabled = w;
-    document.getElementById('user-input').disabled = w;
-  }
+// ── UI Helpers ────────────────────────────────────────────────────
+function appendMessage(text, type) {
+  const msgs = document.getElementById('messages');
+  const el   = document.createElement('div');
+  el.className = `msg ${type}`;
+  el.textContent = text;
+  msgs.appendChild(el);
+  msgs.scrollTop = msgs.scrollHeight;
+  return el;
+}
 
-  function updateLevelBadge() {
-    const badge = document.getElementById('level-badge');
-    badge.textContent = `⬡ ${studentLevel.toUpperCase()}`;
-    badge.style.borderColor = studentLevel === 'Expert' ? '#ff9d00'
-                            : studentLevel === 'Intermediate' ? '#00c8ff'
-                            : '#00ff9d';
-    badge.style.color = badge.style.borderColor;
-  }
+function setWaiting(w) {
+  isWaiting = w;
+  document.getElementById('send-btn').disabled    = w;
+  document.getElementById('user-input').disabled  = w;
+}
+
+function updateLevelBadge() {
+  const badge = document.getElementById('level-badge');
+  badge.textContent = `⬡ ${studentProfile.level.toUpperCase()}`;
+  const colors = { Beginner:'#00ff9d', Intermediate:'#00c8ff', Expert:'#ff9d00' };
+  badge.style.borderColor = colors[studentProfile.level];
+  badge.style.color       = colors[studentProfile.level];
+
+  document.getElementById('profile-level-display').textContent = studentProfile.level;
+  const pct = { Beginner: '33%', Intermediate: '66%', Expert: '100%' }[studentProfile.level];
+  document.getElementById('level-progress').style.width = pct;
+}
+
+function updateTaskCounter() {
+  document.getElementById('task-counter').textContent =
+    `TASK ${studentProfile.tasksDone.length}/${taskList.length}`;
+}
 </script>
 </body>
 </html>
