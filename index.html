@@ -592,7 +592,7 @@
 <script>
   // ── Config ────────────────────────────────────────────────────
   let GEMINI_API_KEY = ''; // Set at runtime via setup screen — never hardcoded
-  const MODEL        = 'gemini-flash-latest';
+  const MODEL        = 'gemini-2.5-flash';
   const API_URL      = () => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
   // ── Setup screen logic ────────────────────────────────────────
@@ -709,7 +709,7 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: buildSystemPrompt() }] },
+        systemInstruction: { parts: [{ text: buildSystemPrompt() }] },
         contents: chatHistory,
         generationConfig: { maxOutputTokens: 512, temperature: 0.7 }
       })
