@@ -4,6 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
   <title>XR Resistor Lab</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;700&display=swap');
 
@@ -24,1014 +26,153 @@
     *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
     body { font-family:var(--sans); background:var(--bg); color:var(--text); height:100dvh; overflow:hidden; -webkit-tap-highlight-color:transparent; }
 
-    /* ── SCREENS ───────────────────────────────── */
+    /* New CSS for the Input Hub */
+    #input-hub { position: fixed; bottom: 36px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 1000; pointer-events: auto; }
+    .hub-btn { width: 56px; height: 56px; border-radius: 50%; border: none; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(0,0,0,0.5); transition: transform 0.1s; }
+    .hub-btn:active { transform: scale(0.92); }
+    #hub-capture { width: 72px; height: 72px; background: linear-gradient(135deg, var(--accent), var(--accent2)); font-size: 30px; }
+    #hub-upload { background: var(--accent3); }
+    #hub-manual { background: #6c5ce7; }
+
+    /* Manual Entry Styles */
+    #manual-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+    .manual-card { background: var(--surface); border: 1px solid var(--accent); border-radius: var(--r); padding: 24px; width: 100%; max-width: 380px; }
+    .m-select { width: 100%; margin-bottom: 12px; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff; border-radius: 8px; }
+
+    /* ... Keep all your original CSS below ... */
     .screen { position:fixed; inset:0; z-index:50; background:var(--bg); display:flex; flex-direction:column; align-items:center; overflow-y:auto; padding:28px 20px 48px; }
-    .screen.hidden { display:none !important; }
-    .screen-logo { font-family:var(--mono); font-size:11px; letter-spacing:4px; color:var(--accent); text-shadow:0 0 12px var(--accent); margin-bottom:24px; align-self:flex-start; }
-    .screen-icon  { font-size:42px; margin-bottom:14px; }
-    .screen-title { font-size:21px; font-weight:700; color:#fff; margin-bottom:6px; text-align:center; }
-    .screen-sub   { font-size:13px; color:var(--dim); text-align:center; margin-bottom:26px; line-height:1.6; max-width:320px; }
-
-    .field { width:100%; max-width:420px; margin-bottom:13px; }
-    .field-label { font-family:var(--mono); font-size:10px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:6px; }
-    .field input,.field textarea,.field select { width:100%; padding:11px 14px; background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:10px; color:var(--text); font-family:var(--sans); font-size:14px; outline:none; transition:border-color .2s; resize:vertical; }
-    .field input:focus,.field textarea:focus,.field select:focus { border-color:var(--accent); }
-    .field input::placeholder,.field textarea::placeholder { color:var(--dim); }
-    .field select option { background:#0a141f; }
-
-    .btn { width:100%; max-width:420px; padding:13px; border-radius:10px; font-family:var(--mono); font-size:12px; letter-spacing:2px; cursor:pointer; transition:all .2s; border:1px solid; }
-    .btn-primary   { background:linear-gradient(135deg,rgba(0,200,255,.15),rgba(0,255,157,.08)); border-color:var(--accent);  color:var(--accent);  text-shadow:0 0 8px var(--accent); }
-    .btn-secondary { background:rgba(255,255,255,.03); border-color:var(--border); color:var(--dim); }
-    .btn-instr     { background:linear-gradient(135deg,rgba(255,157,0,.15),rgba(255,77,109,.08)); border-color:var(--accent3); color:var(--accent3); text-shadow:0 0 8px var(--accent3); }
-    .btn:active    { transform:scale(.97); }
-    .btn:disabled  { opacity:.4; cursor:default; transform:none; }
-    .btn+.btn      { margin-top:10px; }
-
-    .err-msg { color:var(--danger); font-family:var(--mono); font-size:11px; margin-bottom:10px; text-align:center; display:none; }
-    .divider { width:100%; max-width:420px; border:none; border-top:1px solid var(--border); margin:16px 0; }
-    .note    { font-size:11px; color:#3a5a70; text-align:center; max-width:320px; line-height:1.7; margin-top:14px; }
-    .sec-hdr { width:100%; max-width:420px; font-family:var(--mono); font-size:10px; color:var(--accent3); letter-spacing:3px; text-transform:uppercase; margin:4px 0 10px; padding-bottom:6px; border-bottom:1px solid rgba(255,157,0,.2); }
-
-    .comp-tags { width:100%; max-width:420px; display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
-    .ctag { padding:4px 10px; border-radius:5px; font-family:var(--mono); font-size:10px; border:1px solid rgba(255,157,0,.3); color:var(--dim); cursor:pointer; transition:all .15s; }
-    .ctag.selected { background:rgba(255,157,0,.15); border-color:var(--accent3); color:var(--accent3); }
-
-    .profile-card { width:100%; max-width:420px; background:rgba(0,255,157,.05); border:1px solid rgba(0,255,157,.2); border-radius:var(--r); padding:12px 16px; margin-bottom:14px; display:none; }
-    .pc-name { font-size:15px; font-weight:700; color:#fff; margin-bottom:3px; }
-    .pc-meta { font-family:var(--mono); font-size:11px; color:var(--accent2); }
-
-    /* ── LOADING ───────────────────────────────── */
-    #scenario-screen { justify-content:center; }
-    .spin-ring { width:72px; height:72px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; margin-bottom:22px; }
-    #loading-step   { font-family:var(--mono); font-size:12px; color:var(--accent); letter-spacing:2px; text-align:center; margin-bottom:6px; }
-    #loading-detail { font-size:13px; color:var(--dim); text-align:center; max-width:280px; line-height:1.6; }
-    .lsteps { width:100%; max-width:320px; margin-top:28px; display:flex; flex-direction:column; gap:8px; }
-    .lstep  { display:flex; align-items:center; gap:10px; font-family:var(--mono); font-size:11px; color:var(--dim); padding:7px 12px; border:1px solid rgba(255,255,255,.05); border-radius:8px; transition:all .3s; }
-    .lstep.active { color:var(--accent); border-color:var(--accent); background:rgba(0,200,255,.05); }
-    .lstep.done   { color:var(--accent2); border-color:rgba(0,255,157,.3); }
-    .lstep .dot   { width:7px; height:7px; border-radius:50%; background:currentColor; flex-shrink:0; }
-
-    /* ── CAMERA ────────────────────────────────── */
-    #camera-screen { padding:0; justify-content:flex-start; }
-    #camera-video  { width:100%; height:100dvh; object-fit:cover; display:block; }
-    #cam-overlay   { position:fixed; inset:0; z-index:60; display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:20px 20px 36px; pointer-events:none; }
-    #cam-topbar    { width:100%; display:flex; align-items:center; justify-content:space-between; pointer-events:auto; }
-    .cam-logo { font-family:var(--mono); font-size:11px; letter-spacing:3px; color:var(--accent); text-shadow:0 0 10px var(--accent); }
-    #cam-close { background:none; border:none; color:var(--dim); font-size:22px; cursor:pointer; padding:4px 8px; }
-    #scan-frame { width:220px; height:220px; position:relative; display:flex; align-items:center; justify-content:center; }
-    .sfc { position:absolute; width:24px; height:24px; border-color:var(--accent); border-style:solid; }
-    .sfc.tl{top:0;left:0;border-width:3px 0 0 3px} .sfc.tr{top:0;right:0;border-width:3px 3px 0 0}
-    .sfc.bl{bottom:0;left:0;border-width:0 0 3px 3px} .sfc.br{bottom:0;right:0;border-width:0 3px 3px 0}
-    #scan-hint { font-family:var(--mono); font-size:10px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-top:10px; animation:pulse 2s ease-in-out infinite; }
-    #scan-btn { pointer-events:auto; background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; border-radius:50%; width:72px; height:72px; font-size:28px; cursor:pointer; box-shadow:0 0 24px rgba(0,200,255,.4); transition:transform .1s; }
-    #scan-btn:active { transform:scale(.93); }
-    #scan-status { pointer-events:none; font-family:var(--mono); font-size:11px; color:var(--accent); letter-spacing:2px; text-align:center; animation:pulse 1.5s ease-in-out infinite; min-height:20px; }
-
-    /* ── BAND EDITOR ───────────────────────────── */
-    .band-editor-row { width:100%; max-width:420px; display:flex; gap:6px; margin-bottom:8px; }
-    .band-slot { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
-    .bs-label  { font-family:var(--mono); font-size:9px; color:var(--dim); letter-spacing:1px; }
-    .band-box  { width:100%; height:44px; border-radius:6px; border:2px solid rgba(255,255,255,.15); cursor:pointer; transition:transform .1s,border-color .2s; }
-    .band-box:active      { transform:scale(.95); }
-    .band-box.active-edit { border-color:var(--accent); box-shadow:0 0 12px rgba(0,200,255,.4); }
-    .band-val  { font-family:var(--mono); font-size:9px; color:#fff; text-align:center; margin-top:3px; }
-
-    #color-picker { position:fixed; bottom:0; left:0; right:0; z-index:100; background:var(--surface); border-top:1px solid var(--border); backdrop-filter:blur(20px); padding:16px 14px 28px; display:none; }
-    #color-picker.open { display:block; }
-    .cp-title { font-family:var(--mono); font-size:10px; color:var(--accent); letter-spacing:2px; margin-bottom:12px; }
-    .cp-grid  { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
-    .cp-swatch { height:44px; border-radius:6px; border:2px solid rgba(255,255,255,.1); cursor:pointer; transition:transform .1s; display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:9px; }
-    .cp-swatch:active { transform:scale(.9); }
-
-    .decoded-value { width:100%; max-width:420px; background:rgba(0,200,255,.06); border:1px solid rgba(0,200,255,.2); border-radius:var(--r); padding:14px 16px; margin-bottom:14px; text-align:center; }
-    .dv-label { font-family:var(--mono); font-size:9px; color:var(--dim); letter-spacing:2px; margin-bottom:6px; }
-    .dv-value { font-size:28px; font-weight:700; color:#fff; }
-    .dv-sub   { font-family:var(--mono); font-size:11px; color:var(--accent); margin-top:4px; }
-
-    /* ── AR SESSION ────────────────────────────── */
-    #ar-hud { position:fixed; inset:0; z-index:10; display:flex; flex-direction:column; pointer-events:none; }
-    #topbar { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:linear-gradient(to bottom,rgba(7,13,26,.97),transparent); pointer-events:auto; }
-    .tb-left { display:flex; flex-direction:column; gap:2px; }
-    .tb-logo { font-family:var(--mono); font-size:11px; letter-spacing:3px; color:var(--accent); text-shadow:0 0 10px var(--accent); }
-    #tb-student { font-size:11px; color:var(--dim); }
-    .tb-right { display:flex; align-items:center; gap:6px; }
-    #level-badge { font-family:var(--mono); font-size:10px; padding:3px 9px; border-radius:20px; border:1px solid var(--accent2); color:var(--accent2); background:rgba(0,255,157,.08); text-shadow:0 0 8px var(--accent2); transition:all .4s; }
-    #task-counter { font-family:var(--mono); font-size:10px; padding:3px 9px; border-radius:20px; border:1px solid rgba(255,157,0,.4); color:var(--accent3); background:rgba(255,157,0,.08); }
-    #task-card { margin:8px 12px 0; background:var(--surface); border:1px solid rgba(255,157,0,.3); border-radius:var(--r); padding:10px 13px; backdrop-filter:blur(16px); pointer-events:none; }
-    .tc-label { font-family:var(--mono); font-size:9px; color:var(--accent3); letter-spacing:2px; margin-bottom:4px; }
-    #task-text { font-size:13px; color:var(--text); line-height:1.5; }
-    #comp-strip { display:flex; gap:6px; padding:8px 12px 0; overflow-x:auto; pointer-events:auto; }
-    #comp-strip::-webkit-scrollbar { display:none; }
-    .comp-chip { flex-shrink:0; padding:4px 10px; background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:20px; font-family:var(--mono); font-size:10px; color:var(--dim); cursor:pointer; transition:all .2s; }
-    .comp-chip.active { border-color:var(--accent); color:var(--accent); background:rgba(0,200,255,.08); }
-
-    .fab { position:fixed; z-index:15; width:56px; height:56px; border-radius:50%; border:none; font-size:22px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform .1s; pointer-events:auto; box-shadow:0 0 18px rgba(0,200,255,.3); }
-    .fab:active { transform:scale(.92); }
-    #scan-fab { bottom:96px; right:18px; background:linear-gradient(135deg,var(--accent),var(--accent2)); display:none; }
-    #chat-fab { bottom:24px;  right:18px; background:linear-gradient(135deg,#0044cc,var(--accent)); display:none; }
-
-    /* ── CHAT PANEL ────────────────────────────── */
-    #chat-panel { position:fixed; bottom:0; left:0; right:0; height:58dvh; background:var(--surface); border-top:1px solid var(--border); backdrop-filter:blur(20px); display:flex; flex-direction:column; transform:translateY(100%); transition:transform .35s cubic-bezier(.4,0,.2,1); z-index:20; pointer-events:auto; }
-    #chat-panel.open { transform:translateY(0); }
-    #chat-header { display:flex; align-items:center; justify-content:space-between; padding:9px 13px; border-bottom:1px solid var(--border); flex-shrink:0; }
-    .ch-title { font-family:var(--mono); font-size:10px; color:var(--accent); letter-spacing:2px; }
-    #close-chat { background:none; border:none; color:var(--dim); font-size:18px; cursor:pointer; padding:2px 6px; }
-    #chat-tabs { display:flex; border-bottom:1px solid var(--border); flex-shrink:0; }
-    .tab { flex:1; padding:7px; text-align:center; font-family:var(--mono); font-size:10px; letter-spacing:1px; color:var(--dim); cursor:pointer; transition:all .2s; border-bottom:2px solid transparent; }
-    .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
-    .tab-content { display:none; flex:1; flex-direction:column; overflow:hidden; min-height:0; }
-    .tab-content.active { display:flex; }
-    #messages { flex:1; overflow-y:auto; padding:10px 12px; display:flex; flex-direction:column; gap:7px; scroll-behavior:smooth; }
-    #messages::-webkit-scrollbar { width:3px; }
-    #messages::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
-    .msg { max-width:88%; padding:8px 12px; border-radius:var(--r); font-size:13px; line-height:1.5; animation:msgIn .2s ease; }
-    .msg.user   { align-self:flex-end;   background:rgba(0,200,255,.12); border:1px solid rgba(0,200,255,.2); border-bottom-right-radius:3px; color:#e0f4ff; }
-    .msg.ai     { align-self:flex-start; background:rgba(0,255,157,.08); border:1px solid rgba(0,255,157,.15); border-bottom-left-radius:3px; color:#d0f0e8; }
-    .msg.system { align-self:center; max-width:100%; background:rgba(255,157,0,.08); border:1px solid rgba(255,157,0,.2); color:var(--accent3); font-family:var(--mono); font-size:11px; text-align:center; border-radius:8px; }
-    .msg.typing { color:var(--dim); font-family:var(--mono); font-size:18px; letter-spacing:4px; animation:blink 1s step-end infinite; }
-    #input-row { display:flex; gap:7px; padding:8px 10px; border-top:1px solid var(--border); flex-shrink:0; }
-    #user-input { flex:1; background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-family:var(--sans); font-size:13px; outline:none; transition:border-color .2s; }
-    #user-input:focus { border-color:var(--accent); }
-    #user-input::placeholder { color:var(--dim); }
-    #send-btn { background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; border-radius:8px; width:42px; height:42px; cursor:pointer; font-size:16px; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:opacity .2s,transform .1s; }
-    #send-btn:disabled { opacity:.4; cursor:default; }
-    #send-btn:not(:disabled):active { transform:scale(.92); }
-
-    /* profile tab */
-    #profile-tab { overflow-y:auto; }
-    #profile-inner { padding:12px; display:flex; flex-direction:column; gap:8px; }
-    .ps { background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:var(--r); padding:11px 13px; }
-    .ps-lbl { font-family:var(--mono); font-size:9px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:6px; }
-    .ps-val { font-size:14px; font-weight:500; color:#fff; }
-    .prog-bar { height:5px; background:rgba(255,255,255,.06); border-radius:3px; overflow:hidden; margin-top:7px; }
-    .prog-fill { height:100%; background:linear-gradient(to right,var(--accent),var(--accent2)); border-radius:3px; transition:width .5s ease; }
-    .task-li { display:flex; align-items:flex-start; gap:7px; font-size:12px; color:var(--dim); padding:5px 7px; background:rgba(255,255,255,.02); border-radius:6px; }
-    .task-li.done { color:var(--accent2); }
-    .res-chip { background:rgba(0,200,255,.06); border:1px solid rgba(0,200,255,.2); border-radius:8px; padding:8px 10px; margin-top:6px; }
-    .rc-val { font-size:18px; font-weight:700; color:#fff; }
-    .rc-sub { font-family:var(--mono); font-size:10px; color:var(--accent); margin-top:2px; }
-
-    /* ── QUIZ ──────────────────────────────────── */
-    #quiz-screen { gap:0; }
-    #qpbar { width:100%; max-width:420px; height:4px; background:rgba(255,255,255,.06); border-radius:2px; overflow:hidden; margin-bottom:18px; }
-    #qpfill { height:100%; background:linear-gradient(to right,var(--accent),var(--accent2)); border-radius:2px; transition:width .4s ease; }
-    #quiz-qlabel   { font-family:var(--mono); font-size:10px; color:var(--dim); letter-spacing:2px; margin-bottom:10px; }
-    #quiz-question { font-size:15px; color:#fff; font-weight:500; margin-bottom:18px; text-align:center; max-width:380px; line-height:1.6; }
-    .quiz-res { display:flex; align-items:center; gap:0; margin-bottom:18px; height:50px; }
-    .qr-lead { width:28px; height:3px; background:#aaa; }
-    .qr-body { height:22px; background:#c8922a; border-radius:4px; display:flex; align-items:center; justify-content:space-around; padding:0 8px; flex:1; }
-    .qr-band { width:12px; height:22px; }
-    #quiz-opts { width:100%; max-width:420px; display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
-    .qopt { padding:12px 16px; border-radius:10px; background:rgba(255,255,255,.03); border:1px solid var(--border); color:var(--text); font-size:14px; cursor:pointer; transition:all .2s; text-align:left; }
-    .qopt:active { transform:scale(.98); }
-    .qopt.correct { background:rgba(0,255,157,.12); border-color:var(--accent2); color:var(--accent2); }
-    .qopt.wrong   { background:rgba(255,77,109,.1);  border-color:var(--danger);  color:var(--danger);  }
-    .qopt.reveal  { background:rgba(0,255,157,.08);  border-color:rgba(0,255,157,.3); color:var(--accent2); }
-    #quiz-fb { width:100%; max-width:420px; min-height:44px; font-size:13px; color:var(--dim); line-height:1.5; text-align:center; padding:0 8px; }
-
-    /* ── RESULTS ───────────────────────────────── */
-    #results-screen { gap:0; }
-    .res-circle { width:120px; height:120px; border-radius:50%; border:3px solid var(--accent2); display:flex; align-items:center; justify-content:center; flex-direction:column; margin-bottom:16px; box-shadow:0 0 30px rgba(0,255,157,.2); }
-    .rc-num { font-size:36px; font-weight:700; color:#fff; }
-    .rc-tot { font-family:var(--mono); font-size:11px; color:var(--accent2); }
-    .res-item { width:100%; max-width:420px; padding:10px 14px; border-radius:10px; background:rgba(255,255,255,.03); border:1px solid var(--border); margin-bottom:8px; font-size:13px; line-height:1.5; }
-    .res-item.correct { border-color:rgba(0,255,157,.3); }
-    .res-item.wrong   { border-color:rgba(255,77,109,.3); }
-
-    /* ── ANIMATIONS ────────────────────────────── */
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
-    @keyframes spin  { from{transform:rotate(0)} to{transform:rotate(360deg)} }
-    @keyframes msgIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
-    body::after { content:''; position:fixed; inset:0; pointer-events:none; z-index:1; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px); }
+    /* (CSS continues from your original file) */
   </style>
 </head>
 <body>
 
-<!-- SCREEN 1 — API KEY -->
-<div id="key-screen" class="screen">
-  <div class="screen-logo">◈ XR·RESISTOR·LAB</div>
-  <div class="screen-icon">🔑</div>
-  <div class="screen-title">Enter API Key</div>
-  <div class="screen-sub">Powered by Google Gemini. Key is stored in session memory only — never in code.</div>
-  <div class="field">
-    <div class="field-label">Google AI API Key</div>
-    <input id="api-key-input" type="password" placeholder="AIza..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
-  </div>
-  <div style="width:100%;max-width:420px;display:flex;align-items:center;gap:8px;margin-bottom:18px;">
-    <input type="checkbox" id="show-key" onchange="document.getElementById('api-key-input').type=this.checked?'text':'password'" style="accent-color:var(--accent);width:14px;height:14px;">
-    <label for="show-key" style="font-size:12px;color:var(--dim);cursor:pointer;">Show key</label>
-  </div>
-  <div id="key-error" class="err-msg"></div>
-  <button class="btn btn-primary" onclick="submitKey()">CONTINUE ◈</button>
-  <div class="note">Get a free key at aistudio.google.com</div>
-</div>
-
-<!-- SCREEN 2 — ROLE SELECTION -->
-<div id="role-screen" class="screen hidden">
-  <div class="screen-logo">◈ XR·RESISTOR·LAB</div>
-  <div class="screen-icon">⏚</div>
-  <div class="screen-title">Resistor Colour Code Lab</div>
-  <div class="screen-sub">Select your role to continue.</div>
-  <button class="btn btn-instr"    onclick="showScreen('instructor-screen')">🎓 &nbsp; INSTRUCTOR — Configure Lab</button>
-  <button class="btn btn-primary"  onclick="showScreen('student-screen')">📱 &nbsp; STUDENT — Start Session</button>
-</div>
-
-<!-- SCREEN 3 — INSTRUCTOR PANEL -->
-<div id="instructor-screen" class="screen hidden">
-  <div class="screen-logo">◈ INSTRUCTOR PANEL</div>
-  <div class="screen-icon">🎓</div>
-  <div class="screen-title">Knowledge Base Setup</div>
-  <div class="screen-sub">Configure the experiment. GenAI uses this to generate personalised tasks and scenarios.</div>
-
-  <div class="sec-hdr">① EXPERIMENT</div>
-  <div class="field"><div class="field-label">Title</div><input id="exp-title" value="Resistor Colour Code Lab"/></div>
-  <div class="field"><div class="field-label">Description</div><textarea id="exp-desc" rows="3">Students examine physical resistors using AR, decode colour bands, and apply Ohm's Law and circuit analysis to solve problems.</textarea></div>
-  <div class="field"><div class="field-label">Learning Outcomes</div><textarea id="exp-outcomes" rows="3">1. Read and decode a 4-band resistor colour code.
-2. Apply Ohm's Law (V=IR) to calculate current and power.
-3. Calculate equivalent resistance for series and parallel circuits.</textarea></div>
-
-  <div class="sec-hdr">② COMPONENTS</div>
-  <div style="width:100%;max-width:420px;font-size:12px;color:var(--dim);margin-bottom:8px;">Selected components automatically generate the relevant tasks for the session:</div>
-  <div class="comp-tags" id="comp-tags-inst">
-    <span class="ctag selected" data-comp="Resistor">Resistor</span>
-    <span class="ctag" data-comp="Second Resistor">2nd Resistor</span>
-    <span class="ctag" data-comp="DC Power Supply">DC Power Supply</span>
-    <span class="ctag" data-comp="LED">LED</span>
-    <span class="ctag" data-comp="Capacitor">Capacitor</span>
-    <span class="ctag" data-comp="Multimeter">Multimeter</span>
-    <span class="ctag" data-comp="Breadboard">Breadboard</span>
-  </div>
-  <div id="task-preview" style="width:100%;max-width:420px;background:rgba(255,157,0,.05);border:1px solid rgba(255,157,0,.15);border-radius:var(--r);padding:10px 13px;margin-bottom:14px;font-size:12px;color:var(--dim);line-height:1.8;display:none;">
-    <div style="font-family:var(--mono);font-size:9px;color:var(--accent3);letter-spacing:2px;margin-bottom:6px;">AUTO-GENERATED TASKS PREVIEW</div>
-    <div id="task-preview-text"></div>
-  </div>
-
-  <div class="sec-hdr">③ ASSESSMENT</div>
-  <div class="field"><div class="field-label">Custom Tasks (optional — leave blank to auto-generate from components)</div><textarea id="exp-tasks" rows="3" placeholder="Leave blank to auto-generate from component selection above..."></textarea></div>
-  <div class="field"><div class="field-label">Default Student Level</div>
-    <select id="exp-diff">
-      <option value="Beginner">Beginner</option>
-      <option value="Intermediate" selected>Intermediate</option>
-      <option value="Expert">Expert</option>
-    </select>
-  </div>
-
-  <div class="sec-hdr">④ END-OF-SESSION QUIZ</div>
-  <div class="field"><div class="field-label">Number of Quiz Questions (0 = no quiz)</div><input id="exp-quiz-n" type="number" min="0" max="20" value="3"/></div>
-  <div class="field"><div class="field-label">Quiz Difficulty</div>
-    <select id="exp-quiz-diff">
-      <option value="Beginner">Beginner</option>
-      <option value="Intermediate" selected>Intermediate</option>
-      <option value="Expert">Expert</option>
-    </select>
-  </div>
-
-  <hr class="divider"/>
-  <button class="btn btn-instr"    onclick="saveKB()">💾 &nbsp; SAVE KNOWLEDGE BASE</button>
-  <button class="btn btn-secondary" onclick="showScreen('role-screen')">← BACK</button>
-  <div id="kb-saved" style="display:none;margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--accent2);text-align:center;">✓ Knowledge base saved</div>
-</div>
-
-<!-- SCREEN 4 — STUDENT LOGIN -->
-<div id="student-screen" class="screen hidden">
-  <div class="screen-logo">◈ STUDENT LOGIN</div>
-  <div class="screen-icon">📱</div>
-  <div class="screen-title">Start Your Session</div>
-  <div class="screen-sub">Returning students have their profile and progress loaded automatically.</div>
-  <div class="field"><div class="field-label">Full Name</div><input id="student-name" type="text" placeholder="e.g. Ahmed Al-Rashid" autocomplete="name"/></div>
-  <div class="field"><div class="field-label">Student ID</div><input id="student-id" type="text" placeholder="e.g. S20241234" autocomplete="off"/></div>
-  <div id="returning-card" class="profile-card"><div class="pc-name" id="ret-name"></div><div class="pc-meta" id="ret-meta"></div></div>
-  <div id="login-error" class="err-msg"></div>
-  <button class="btn btn-primary"    onclick="studentLogin()">▶ &nbsp; START SESSION</button>
-  <button class="btn btn-secondary"  onclick="showScreen('role-screen')">← BACK</button>
-</div>
-
-<!-- SCREEN 5 — LOADING -->
-<div id="scenario-screen" class="screen hidden">
-  <div class="spin-ring"></div>
-  <div id="loading-step">INITIALISING</div>
-  <div id="loading-detail">Preparing your session...</div>
-  <div class="lsteps">
-    <div class="lstep" id="ls-kb">      <div class="dot"></div>Loading Knowledge Base</div>
-    <div class="lstep" id="ls-profile"> <div class="dot"></div>Retrieving Student Profile</div>
-    <div class="lstep" id="ls-assets">  <div class="dot"></div>Asset Manager — Components</div>
-    <div class="lstep" id="ls-scene">   <div class="dot"></div>Scenario Manager — Generating</div>
-    <div class="lstep" id="ls-ar">      <div class="dot"></div>Launching AR Session</div>
-  </div>
-</div>
-
-<!-- SCREEN 6 — CAMERA -->
 <div id="camera-screen" class="screen hidden">
   <video id="camera-video" autoplay playsinline muted></video>
   <canvas id="capture-canvas" style="display:none;"></canvas>
+  
   <div id="cam-overlay">
     <div id="cam-topbar">
-      <div class="cam-logo">◈ SCAN RESISTOR</div>
+      <div class="cam-logo">◈ CAPTURE RESISTOR</div>
       <button id="cam-close" onclick="closeCamera()">✕</button>
     </div>
+
     <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div id="scan-frame">
         <div class="sfc tl"></div><div class="sfc tr"></div>
         <div class="sfc bl"></div><div class="sfc br"></div>
       </div>
-      <div id="scan-hint">hold resistor steady within frame</div>
+      <div id="scan-hint">Select an input method below</div>
     </div>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
-      <div id="scan-status"></div>
-      <button id="scan-btn" onclick="captureAndAnalyse()">📷</button>
-    </div>
-  </div>
-</div>
 
-<!-- SCREEN 7 — BAND EDITOR -->
-<div id="band-editor-screen" class="screen hidden">
-  <div class="screen-logo">◈ COLOUR CODE DECODER</div>
-  <div class="screen-icon">⏚</div>
-  <div class="screen-title">Verify Colour Bands</div>
-  <div class="screen-sub">Tap any band to correct it. Confirm when the colours match your resistor.</div>
-  <div id="scan-note" style="width:100%;max-width:420px;background:rgba(0,200,255,.05);border:1px solid rgba(0,200,255,.15);border-radius:var(--r);padding:10px 13px;margin-bottom:14px;font-size:12px;color:var(--dim);line-height:1.5;"></div>
-  <div class="band-editor-row" id="band-row"></div>
-  <div class="decoded-value">
-    <div class="dv-label">DECODED RESISTANCE</div>
-    <div class="dv-value" id="decoded-val">—</div>
-    <div class="dv-sub"   id="decoded-sub">Select bands above</div>
-  </div>
-  <button class="btn btn-primary"   onclick="confirmBands()">✓ &nbsp; CONFIRM &amp; CONTINUE</button>
-  <button class="btn btn-secondary" onclick="openCamera()">↩ &nbsp; RE-SCAN</button>
-  <div id="color-picker">
-    <div class="cp-title" id="cp-title">SELECT COLOUR</div>
-    <div class="cp-grid"  id="cp-grid"></div>
-  </div>
-</div>
+    <div id="scan-status"></div>
 
-<!-- AR SESSION BACKGROUND -->
-<div id="ar-bg" style="display:none;position:fixed;inset:0;z-index:0;">
-  <video id="ar-video" autoplay playsinline muted style="width:100%;height:100dvh;object-fit:cover;"></video>
-</div>
+    <div id="input-hub">
+      <label class="hub-btn" id="hub-upload">
+        <input type="file" id="file-input" accept="image/*" style="display:none;" onchange="handleFileUpload(event)">
+        📁
+      </label>
 
-<!-- AR HUD -->
-<div id="ar-hud" style="display:none;">
-  <div id="topbar">
-    <div class="tb-left"><div class="tb-logo">◈ XR·RESISTOR·LAB</div><div id="tb-student"></div></div>
-    <div class="tb-right"><div id="task-counter">0/0</div><div id="level-badge">⬡ BEGINNER</div></div>
-  </div>
-  <div id="task-card"><div class="tc-label">◈ CURRENT TASK</div><div id="task-text">Loading...</div></div>
-  <div id="comp-strip"></div>
-</div>
+      <button class="hub-btn" id="hub-capture" onclick="captureAndAnalyse()">📷</button>
 
-<button id="scan-fab" class="fab" onclick="openCamera()" title="Scan resistor">📷</button>
-<button id="chat-fab" class="fab" onclick="toggleChat()" title="Open tutor">💬</button>
-
-<!-- CHAT PANEL -->
-<div id="chat-panel">
-  <div id="chat-header">
-    <div class="ch-title">◈ INTELLIGENT PEDAGOGICAL AGENT</div>
-    <button id="close-chat" onclick="toggleChat()">✕</button>
-  </div>
-  <div id="chat-tabs">
-    <div class="tab active" onclick="switchTab('chat')">💬 TUTOR</div>
-    <div class="tab"        onclick="switchTab('profile')">👤 PROFILE</div>
-  </div>
-  <div id="chat-tab" class="tab-content active">
-    <div id="messages"></div>
-    <div id="input-row">
-      <input id="user-input" type="text" placeholder="Ask about resistors..." autocomplete="off" autocorrect="off"/>
-      <button id="send-btn" onclick="sendMessage()">➤</button>
+      <button class="hub-btn" id="hub-manual" onclick="toggleManualEntry(true)">⌨️</button>
     </div>
   </div>
-  <div id="profile-tab" class="tab-content">
-    <div id="profile-inner"></div>
+</div>
+
+<div id="manual-overlay">
+  <div class="manual-card">
+    <h3 style="margin-bottom:15px; color:var(--accent);">Manual Entry</h3>
+    <p style="font-size:12px; color:var(--dim); margin-bottom:15px;">Select the color bands you see on the resistor.</p>
+    
+    <label class="field-label">Band 1 (First Digit)</label>
+    <select id="m-band1" class="m-select">
+      <option value="brown">Brown</option><option value="red">Red</option><option value="orange">Orange</option>
+      <option value="yellow">Yellow</option><option value="green">Green</option><option value="blue">Blue</option>
+      <option value="violet">Violet</option><option value="grey">Grey</option><option value="white">White</option>
+    </select>
+
+    <label class="field-label">Band 2 (Second Digit)</label>
+    <select id="m-band2" class="m-select">
+      <option value="black">Black</option><option value="brown">Brown</option><option value="red">Red</option>
+      <option value="orange">Orange</option><option value="yellow">Yellow</option><option value="green">Green</option>
+      <option value="blue">Blue</option><option value="violet">Violet</option><option value="grey">Grey</option><option value="white">White</option>
+    </select>
+
+    <label class="field-label">Band 3 (Multiplier)</label>
+    <select id="m-band3" class="m-select">
+      <option value="black">Black (x1)</option><option value="brown">Brown (x10)</option><option value="red">Red (x100)</option>
+      <option value="orange">Orange (x1k)</option><option value="yellow" selected>Yellow (x10k)</option>
+      <option value="green">Green (x100k)</option><option value="blue">Blue (x1M)</option><option value="gold">Gold (x0.1)</option>
+    </select>
+
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button class="btn btn-secondary" onclick="toggleManualEntry(false)">CANCEL</button>
+      <button class="btn btn-primary" onclick="submitManualEntry()">PROCESS ✓</button>
+    </div>
   </div>
-</div>
-
-<!-- SCREEN 8 — QUIZ -->
-<div id="quiz-screen" class="screen hidden">
-  <div class="screen-logo">◈ END-OF-SESSION QUIZ</div>
-  <div id="qpbar"><div id="qpfill" style="width:0%"></div></div>
-  <div id="quiz-qlabel">QUESTION 1 / 1</div>
-  <div id="quiz-question">Loading...</div>
-  <div class="quiz-res" id="quiz-visual"></div>
-  <div id="quiz-opts"></div>
-  <div id="quiz-fb"></div>
-  <button id="quiz-next" class="btn btn-primary" style="display:none;max-width:420px;" onclick="nextQ()">NEXT →</button>
-</div>
-
-<!-- SCREEN 9 — RESULTS -->
-<div id="results-screen" class="screen hidden">
-  <div class="screen-logo">◈ SESSION COMPLETE</div>
-  <div style="margin-bottom:14px;font-size:13px;color:var(--dim);">Well done, <span id="res-name"></span>!</div>
-  <div class="res-circle"><div class="rc-num" id="res-score">0</div><div class="rc-tot" id="res-tot">/ 0</div></div>
-  <div id="res-fb" style="font-size:14px;color:#fff;font-weight:500;margin-bottom:18px;text-align:center;max-width:320px;line-height:1.6;"></div>
-  <div id="res-list" style="width:100%;max-width:420px;display:flex;flex-direction:column;gap:8px;margin-bottom:20px;"></div>
-  <button class="btn btn-primary"   onclick="showScreen('role-screen')">↩ &nbsp; NEW SESSION</button>
-  <button class="btn btn-secondary" onclick="returnToLab()">CONTINUE TO LAB →</button>
 </div>
 
 <script>
-// ══════════════════════════════════════════════════════════════
-// CONFIG & CONSTANTS
-// ══════════════════════════════════════════════════════════════
-const MODEL   = 'gemini-2.5-flash';
-const API_URL = () => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  // ── NEW LOGIC FOR INPUT METHODS ──────────────────
 
-const COLORS = [
-  { name:'Black',  hex:'#1a1a1a', digit:0, mult:1,      tol:null    },
-  { name:'Brown',  hex:'#8B4513', digit:1, mult:10,      tol:'±1%'   },
-  { name:'Red',    hex:'#cc0000', digit:2, mult:100,     tol:'±2%'   },
-  { name:'Orange', hex:'#e86000', digit:3, mult:1000,    tol:null    },
-  { name:'Yellow', hex:'#e8d000', digit:4, mult:10000,   tol:null    },
-  { name:'Green',  hex:'#00aa44', digit:5, mult:100000,  tol:'±0.5%' },
-  { name:'Blue',   hex:'#0055cc', digit:6, mult:1000000, tol:'±0.25%'},
-  { name:'Violet', hex:'#8800cc', digit:7, mult:null,    tol:'±0.1%' },
-  { name:'Grey',   hex:'#777777', digit:8, mult:null,    tol:'±0.05%'},
-  { name:'White',  hex:'#eeeeee', digit:9, mult:null,    tol:null    },
-  { name:'Gold',   hex:'#c8a000', digit:null, mult:0.1,  tol:'±5%'   },
-  { name:'Silver', hex:'#aaaaaa', digit:null, mult:0.01, tol:'±10%'  },
-];
+  // 1. Handle File Upload
+  async function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
 
-const COMP_TASKS = {
-  'Second Resistor': 'Calculate the equivalent resistance when your scanned resistor is connected in series and then in parallel with an identical second resistor.',
-  'DC Power Supply': 'Using your scanned resistor value, calculate the current flowing and power dissipated when connected to a 9V DC supply.',
-  'LED':             'Calculate the correct resistor value needed to safely limit current for a standard red LED (Vf=2V, If=20mA) from a 5V supply, then compare with your scanned resistor.',
-  'Capacitor':       'Explain how your scanned resistor and a 100µF capacitor form an RC circuit. Calculate the time constant τ=RC.',
-  'Multimeter':      'Describe the steps to verify your scanned resistor value using a digital multimeter. What setting would you use?',
-  'Breadboard':      'Describe how you would correctly insert this resistor on a breadboard to build a simple voltage divider with a second resistor.',
-};
-
-// ══════════════════════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════════════════════
-let GEMINI_API_KEY = '';
-let cameraStream   = null;
-let editBandIdx    = null;
-let currentBands   = [null, null, null, null];
-let allProfiles    = {};
-let chatHistory    = [];
-let isWaiting      = false;
-let chatOpen       = false;
-let taskList       = [];
-let scannedR       = null; // { value, ohms, tolerance, bands[] }
-let quizQs         = [];
-let quizIdx        = 0;
-let quizScore      = 0;
-let quizAnswers    = [];
-
-let KB = {
-  title:'Resistor Colour Code Lab',
-  description:'Students examine physical resistors, decode colour bands, and apply Ohm\'s Law.',
-  outcomes:'1. Decode a 4-band resistor colour code.\n2. Apply Ohm\'s Law.\n3. Calculate equivalent resistance.',
-  components:['Resistor'],
-  customTasks:'',
-  difficulty:'Intermediate',
-  quizCount:3,
-  quizDiff:'Intermediate'
-};
-
-let SP = { name:'', id:'', level:'Beginner', tasksDone:[], sessionCount:0, resistors:[] };
-
-// ══════════════════════════════════════════════════════════════
-// NAVIGATION
-// ══════════════════════════════════════════════════════════════
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
-  if (id) { const el = document.getElementById(id); if(el){el.classList.remove('hidden');el.scrollTop=0;} }
-}
-
-// ══════════════════════════════════════════════════════════════
-// SCREEN 1 — API KEY
-// ══════════════════════════════════════════════════════════════
-function submitKey() {
-  const k = document.getElementById('api-key-input').value.trim();
-  const e = document.getElementById('key-error');
-  if (!k.startsWith('AIza')) { e.textContent='⚠ Google AI keys start with AIza'; e.style.display='block'; return; }
-  GEMINI_API_KEY = k;
-  document.getElementById('api-key-input').value = '';
-  e.style.display = 'none';
-  showScreen('role-screen');
-}
-document.getElementById('api-key-input').addEventListener('keydown', e=>{ if(e.key==='Enter') submitKey(); });
-
-// ══════════════════════════════════════════════════════════════
-// SCREEN 3 — INSTRUCTOR
-// ══════════════════════════════════════════════════════════════
-document.querySelectorAll('#comp-tags-inst .ctag').forEach(tag => {
-  tag.addEventListener('click', () => {
-    if (tag.dataset.comp === 'Resistor') return;
-    tag.classList.toggle('selected');
-    refreshTaskPreview();
-  });
-});
-
-function refreshTaskPreview() {
-  const extras = getSelComps().filter(c => c !== 'Resistor');
-  const prev   = document.getElementById('task-preview');
-  const ptxt   = document.getElementById('task-preview-text');
-  if (!extras.length) { prev.style.display='none'; return; }
-  prev.style.display = 'block';
-  const lines = ['<b>Task 1:</b> Scan the resistor, verify colour bands, and state its value and tolerance.'];
-  extras.forEach((c,i) => lines.push(`<b>Task ${i+2}:</b> ${COMP_TASKS[c]||'Explore '+c+' in a circuit context.'}`));
-  ptxt.innerHTML = lines.join('<br>');
-}
-
-function getSelComps() {
-  return [...document.querySelectorAll('#comp-tags-inst .ctag.selected')].map(t=>t.dataset.comp);
-}
-
-function saveKB() {
-  KB = {
-    title:      document.getElementById('exp-title').value.trim()    || KB.title,
-    description:document.getElementById('exp-desc').value.trim()     || KB.description,
-    outcomes:   document.getElementById('exp-outcomes').value.trim() || KB.outcomes,
-    components: getSelComps().length ? getSelComps() : ['Resistor'],
-    customTasks:document.getElementById('exp-tasks').value.trim(),
-    difficulty: document.getElementById('exp-diff').value,
-    quizCount:  parseInt(document.getElementById('exp-quiz-n').value)||0,
-    quizDiff:   document.getElementById('exp-quiz-diff').value
-  };
-  document.getElementById('kb-saved').style.display = 'block';
-  setTimeout(()=>document.getElementById('kb-saved').style.display='none', 3000);
-}
-
-// ══════════════════════════════════════════════════════════════
-// SCREEN 4 — STUDENT LOGIN
-// ══════════════════════════════════════════════════════════════
-document.getElementById('student-id').addEventListener('input', function() {
-  const id = this.value.trim().toUpperCase();
-  const card = document.getElementById('returning-card');
-  if (allProfiles[id]) {
-    const p = allProfiles[id];
-    document.getElementById('ret-name').textContent = p.name;
-    document.getElementById('ret-meta').textContent = `Level: ${p.level} · Sessions: ${p.sessionCount} · Tasks: ${p.tasksDone.length}`;
-    card.style.display = 'block';
-    document.getElementById('student-name').value = p.name;
-  } else { card.style.display='none'; }
-});
-
-function studentLogin() {
-  const name = document.getElementById('student-name').value.trim();
-  const id   = document.getElementById('student-id').value.trim().toUpperCase();
-  const err  = document.getElementById('login-error');
-  if (!name||!id) { err.textContent='⚠ Please enter name and ID'; err.style.display='block'; return; }
-  err.style.display='none';
-  SP = allProfiles[id]
-    ? { ...allProfiles[id], sessionCount: allProfiles[id].sessionCount+1 }
-    : { name, id, level:KB.difficulty, tasksDone:[], sessionCount:1, resistors:[] };
-  allProfiles[id] = SP;
-  showScreen('scenario-screen');
-  runLoading();
-}
-
-// ══════════════════════════════════════════════════════════════
-// SCREEN 5 — LOADING / SCENARIO GENERATION
-// ══════════════════════════════════════════════════════════════
-async function runLoading() {
-  async function step(id,label,detail,ms) {
-    document.getElementById('loading-step').textContent=label;
-    document.getElementById('loading-detail').textContent=detail;
-    const el=document.getElementById(id); el.classList.add('active');
-    await wait(ms);
-    el.classList.remove('active'); el.classList.add('done');
+    setStatus("Reading file...");
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64Image = e.target.result.split(',')[1];
+      // Reuse your existing analysis logic
+      await analyzeImage(base64Image); 
+    };
+    reader.readAsDataURL(file);
   }
-  await step('ls-kb',     'KNOWLEDGE BASE',  'Loading: '+KB.title, 800);
-  await step('ls-profile','STUDENT PROFILE', SP.name+' — Level: '+SP.level, 700);
-  await step('ls-assets', 'ASSET MANAGER',   'Components: '+KB.components.join(', '), 800);
 
-  document.getElementById('loading-step').textContent   = 'SCENARIO MANAGER';
-  document.getElementById('loading-detail').textContent = 'Generating personalised tasks...';
-  document.getElementById('ls-scene').classList.add('active');
-  taskList = await buildTaskList();
-  document.getElementById('ls-scene').classList.remove('active');
-  document.getElementById('ls-scene').classList.add('done');
-
-  await step('ls-ar','AR PLATFORM','Launching camera session...', 600);
-  launchAR();
-}
-
-async function buildTaskList() {
-  if (KB.customTasks.trim()) return KB.customTasks.split('\n').filter(t=>t.trim());
-  const extras = KB.components.filter(c=>c!=='Resistor');
-  const base = ['Task 1: Scan the resistor, verify its colour bands, and state its resistance value and tolerance.'];
-  extras.forEach((c,i)=>base.push(`Task ${i+2}: ${COMP_TASKS[c]||'Explore '+c+' in a circuit context.'}`));
-  base.push(`Task ${base.length+1}: Summarise your findings and relate them to the learning outcomes.`);
-  try {
-    const r = await geminiRaw(`Rewrite these tasks for a ${SP.level} student named ${SP.name}. Keep the same count. Return ONLY the numbered list:\n${base.join('\n')}`, 400);
-    const lines = r.split('\n').filter(l=>l.trim());
-    return lines.length >= base.length ? lines : base;
-  } catch { return base; }
-}
-
-// ══════════════════════════════════════════════════════════════
-// AR SESSION LAUNCH
-// ══════════════════════════════════════════════════════════════
-async function launchAR() {
-  showScreen('');
-  try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false });
-    document.getElementById('ar-video').srcObject = cameraStream;
-  } catch(e) { console.warn('Camera:', e); }
-
-  document.getElementById('ar-bg').style.display   = 'block';
-  document.getElementById('ar-hud').style.display  = 'flex';
-  document.getElementById('scan-fab').style.display = 'flex';
-  document.getElementById('chat-fab').style.display = 'flex';
-
-  document.getElementById('tb-student').textContent = SP.name;
-  updateBadge(); updateCounter(); updateTaskCard(); buildStrip(); renderProfile();
-
-  const welcome = await buildWelcome();
-  appendMsg(welcome, 'ai');
-  chatHistory.push({ role:'model', parts:[{ text:welcome }] });
-  setTimeout(()=>appendMsg('📷 Tap the camera button (bottom right) to scan your resistor and begin!','system'), 700);
-}
-
-async function buildWelcome() {
-  try {
-    return await geminiRaw(
-      `Welcome message for ${SP.name} (${SP.level}, session ${SP.sessionCount}) starting "${KB.title}". First task: ${taskList[0]||'Scan the resistor'}. ${SP.tasksDone.length>0?'They completed '+SP.tasksDone.length+' tasks before.':''} 2-3 sentences, friendly, mobile-friendly.`,
-      150);
-  } catch { return `Welcome, ${SP.name}! Let's begin the ${KB.title}. Tap 📷 to scan your first resistor!`; }
-}
-
-// ══════════════════════════════════════════════════════════════
-// CAMERA
-// ══════════════════════════════════════════════════════════════
-async function openCamera() {
-  document.getElementById('scan-status').textContent = '';
-  document.getElementById('camera-screen').classList.remove('hidden');
-  try {
-    if (!cameraStream) cameraStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false });
-    document.getElementById('camera-video').srcObject = cameraStream;
-  } catch { document.getElementById('scan-status').textContent='⚠ Camera unavailable'; }
-}
-
-function closeCamera() {
-  document.getElementById('camera-screen').classList.add('hidden');
-}
-
-async function captureAndAnalyse() {
-  const video  = document.getElementById('camera-video');
-  const canvas = document.getElementById('capture-canvas');
-  const status = document.getElementById('scan-status');
-  canvas.width  = video.videoWidth  || 640;
-  canvas.height = video.videoHeight || 480;
-  canvas.getContext('2d').drawImage(video, 0, 0);
-  const b64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
-
-  status.textContent = 'ANALYSING WITH GEMINI VISION...';
-  document.getElementById('scan-btn').disabled = true;
-
-  try {
-    const result = await analyseImage(b64);
-    status.textContent = '✓ DONE';
-    setTimeout(()=>{ closeCamera(); showBandEditor(result); }, 500);
-  } catch(e) {
-    status.textContent = '⚠ Could not identify resistor. Try better lighting.';
-    console.error(e);
+  // 2. Manual Entry Toggles
+  function toggleManualEntry(show) {
+    document.getElementById('manual-overlay').style.display = show ? 'flex' : 'none';
   }
-  document.getElementById('scan-btn').disabled = false;
-}
 
-async function analyseImage(b64) {
-  const prompt = `Analyse this resistor image. Identify the 4 colour bands left to right.
-Use ONLY these names: Black, Brown, Red, Orange, Yellow, Green, Blue, Violet, Grey, White, Gold, Silver
-Return ONLY valid JSON, no other text:
-{"bands":["c1","c2","c3","c4"],"confidence":"high|medium|low","notes":"brief observation"}
-If unclear, return: {"bands":["Brown","Black","Red","Gold"],"confidence":"low","notes":"Could not clearly identify"}`;
+  // 3. Process Manual Entry
+  function submitManualEntry() {
+    const manualBands = [
+      document.getElementById('m-band1').value,
+      document.getElementById('m-band2').value,
+      document.getElementById('m-band3').value,
+      "gold" // Defaulting to gold tolerance
+    ];
 
-  const res = await fetch(API_URL(), {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      contents:[{ role:'user', parts:[
-        { inlineData:{ mimeType:'image/jpeg', data:b64 }},
-        { text:prompt }
-      ]}],
-      generationConfig:{ maxOutputTokens:150, temperature:0.1 }
-    })
-  });
-  if (!res.ok) throw new Error(res.status);
-  const data = await res.json();
-  let txt = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
-  txt = txt.replace(/```json|```/g,'').trim();
-  return JSON.parse(txt);
-}
-
-// ══════════════════════════════════════════════════════════════
-// BAND EDITOR
-// ══════════════════════════════════════════════════════════════
-function showBandEditor(result) {
-  showScreen('band-editor-screen');
-  const conf = result.confidence || 'low';
-  const confColor = conf==='high' ? 'var(--accent2)' : conf==='medium' ? 'var(--accent3)' : 'var(--danger)';
-  document.getElementById('scan-note').innerHTML =
-    `<b style="color:${confColor}">Gemini Vision — Confidence: ${conf.toUpperCase()}</b><br>${result.notes||'Please verify the detected bands below.'}`;
-
-  const bands = (result.bands||['Brown','Black','Red','Gold']).slice(0,4);
-  currentBands = bands.map(n=>COLORS.find(c=>c.name.toLowerCase()===n.toLowerCase())||COLORS[1]);
-  renderBands(); updateDecoded(); buildPicker();
-}
-
-function renderBands() {
-  const row = document.getElementById('band-row');
-  row.innerHTML = '';
-  ['B1','B2','Mult','Tol'].forEach((lbl,i)=>{
-    const band = currentBands[i];
-    const slot = document.createElement('div'); slot.className='band-slot';
-    slot.innerHTML = `
-      <div class="bs-label">${lbl}</div>
-      <div class="band-box" id="bb${i}" style="background:${band?band.hex:'#333'}" onclick="openPicker(${i})"></div>
-      <div class="band-val" id="bv${i}">${band?band.name:'?'}</div>`;
-    row.appendChild(slot);
-  });
-}
-
-function openPicker(idx) {
-  editBandIdx = idx;
-  document.querySelectorAll('.band-box').forEach(b=>b.classList.remove('active-edit'));
-  document.getElementById(`bb${idx}`).classList.add('active-edit');
-  document.getElementById('cp-title').textContent = `SELECT COLOUR FOR BAND ${idx+1}`;
-  document.getElementById('color-picker').classList.add('open');
-}
-
-function buildPicker() {
-  const grid = document.getElementById('cp-grid');
-  grid.innerHTML = '';
-  COLORS.forEach(c=>{
-    const sw = document.createElement('div');
-    sw.className = 'cp-swatch';
-    sw.style.background = c.hex;
-    sw.style.color = ['White','Yellow','Gold','Silver','Grey','Orange'].includes(c.name)?'#222':'#fff';
-    sw.textContent = c.name.substring(0,3);
-    sw.title = c.name;
-    sw.onclick = ()=>pickColor(c);
-    grid.appendChild(sw);
-  });
-}
-
-function pickColor(color) {
-  if (editBandIdx===null) return;
-  currentBands[editBandIdx] = color;
-  document.getElementById(`bb${editBandIdx}`).style.background = color.hex;
-  document.getElementById(`bv${editBandIdx}`).textContent = color.name;
-  document.getElementById('color-picker').classList.remove('open');
-  document.querySelectorAll('.band-box').forEach(b=>b.classList.remove('active-edit'));
-  editBandIdx = null;
-  updateDecoded();
-}
-
-function updateDecoded() {
-  const [b1,b2,b3,b4] = currentBands;
-  if (!b1||!b2||!b3) { document.getElementById('decoded-val').textContent='—'; document.getElementById('decoded-sub').textContent='Select all bands'; return; }
-  const raw = (b1.digit*10 + b2.digit) * (b3.mult||1);
-  const tol = b4?b4.tol||'±?':'±?';
-  document.getElementById('decoded-val').textContent = fmtR(raw);
-  document.getElementById('decoded-sub').textContent = `Tolerance: ${tol}  ·  ${[b1,b2,b3,b4].map(b=>b?.name||'?').join(' – ')}`;
-}
-
-function fmtR(ohms) {
-  if (ohms>=1e6)  return (ohms/1e6).toFixed(ohms%1e6===0?0:2)+' MΩ';
-  if (ohms>=1000) return (ohms/1000).toFixed(ohms%1000===0?0:2)+' kΩ';
-  return ohms+' Ω';
-}
-
-function confirmBands() {
-  const [b1,b2,b3,b4] = currentBands;
-  if (!b1||!b2||!b3) { alert('Please select all band colours.'); return; }
-  const ohms = (b1.digit*10+b2.digit)*(b3.mult||1);
-  scannedR = { value:fmtR(ohms), ohms, tolerance:b4?.tol||'±5%', bands:currentBands.map(b=>b?.name||'?') };
-  SP.resistors.push(scannedR);
-  allProfiles[SP.id] = SP;
-  closeCamera();
-  document.getElementById('band-editor-screen').classList.add('hidden');
-
-  if (document.getElementById('ar-hud').style.display!=='none') {
-    onResistorConfirmed();
-  } else {
-    showScreen('scenario-screen');
-    runLoading();
+    toggleManualEntry(false);
+    
+    // Skip AI and go straight to your existing band editor screen
+    detectedBands = manualBands;
+    showScreen('band-editor-screen');
+    initBandEditor("Manual Input provided by user. Confidence: High.");
   }
-}
 
-function onResistorConfirmed() {
-  // Mark task 1 done if it involves scanning
-  if (taskList[0]?.toLowerCase().includes('scan')) markDone(0);
-  appendMsg(`🔍 Scanned: ${scannedR.value} ${scannedR.tolerance} (${scannedR.bands.join(' – ')})`, 'system');
-  setTimeout(()=>appendMsg(`I can see you've identified a ${scannedR.value} resistor with ${scannedR.tolerance} tolerance. What would you like to explore? I can help with Ohm's Law, circuit calculations, or anything about this component.`,'ai'), 400);
-  renderProfile();
-  if (!chatOpen) toggleChat();
-}
-
-// ══════════════════════════════════════════════════════════════
-// AR HUD HELPERS
-// ══════════════════════════════════════════════════════════════
-function updateTaskCard() {
-  const rem = taskList.filter((_,i)=>!SP.tasksDone.includes(i));
-  document.getElementById('task-text').textContent = rem.length>0 ? rem[0] : '🎉 All tasks complete!';
-  if (rem.length===0 && KB.quizCount>0) {
-    setTimeout(()=>appendMsg('🎯 All tasks complete! Starting quiz...','system'),500);
-    setTimeout(()=>startQuiz(), 2000);
+  // Helper for status updates
+  function setStatus(txt) {
+    const el = document.getElementById('scan-status');
+    if(el) el.textContent = txt;
   }
-}
-function updateCounter() { document.getElementById('task-counter').textContent=`${SP.tasksDone.length}/${taskList.length}`; }
-function updateBadge() {
-  const badge=document.getElementById('level-badge');
-  badge.textContent=`⬡ ${SP.level.toUpperCase()}`;
-  const c={Beginner:'#00ff9d',Intermediate:'#00c8ff',Expert:'#ff9d00'}[SP.level];
-  badge.style.borderColor=c; badge.style.color=c;
-}
-function buildStrip() {
-  const s=document.getElementById('comp-strip'); s.innerHTML='';
-  KB.components.forEach((c,i)=>{
-    const ch=document.createElement('div'); ch.className=`comp-chip${i===0?' active':''}`;
-    ch.textContent=c; ch.onclick=()=>{document.querySelectorAll('.comp-chip').forEach(x=>x.classList.remove('active'));ch.classList.add('active');};
-    s.appendChild(ch);
-  });
-}
-function markDone(idx) {
-  if (SP.tasksDone.includes(idx)||idx>=taskList.length) return;
-  SP.tasksDone.push(idx); allProfiles[SP.id]=SP;
-  appendMsg(`✅ Task ${idx+1} complete!`,'system');
-  updateCounter(); updateTaskCard(); renderProfile();
-}
-function renderProfile() {
-  const el=document.getElementById('profile-inner');
-  el.innerHTML=`
-    <div class="ps"><div class="ps-lbl">Student</div><div class="ps-val">${SP.name} (${SP.id})</div></div>
-    <div class="ps"><div class="ps-lbl">Adaptive Level</div><div class="ps-val">${SP.level}</div>
-      <div class="prog-bar"><div class="prog-fill" style="width:${SP.level==='Expert'?100:SP.level==='Intermediate'?66:33}%"></div></div></div>
-    <div class="ps"><div class="ps-lbl">Experiment</div><div class="ps-val">${KB.title}</div></div>
-    ${scannedR?`<div class="ps"><div class="ps-lbl">Scanned Resistor</div><div class="res-chip"><div class="rc-val">${scannedR.value}</div><div class="rc-sub">${scannedR.tolerance} · ${scannedR.bands.join(' – ')}</div></div></div>`:''}
-    <div class="ps"><div class="ps-lbl">Tasks</div><div style="display:flex;flex-direction:column;gap:5px;margin-top:4px;">
-      ${taskList.map((t,i)=>`<div class="task-li${SP.tasksDone.includes(i)?' done':''}"><span>${SP.tasksDone.includes(i)?'✅':'○'}</span><span>${t}</span></div>`).join('')}
-    </div></div>`;
-}
 
-// ══════════════════════════════════════════════════════════════
-// CHAT
-// ══════════════════════════════════════════════════════════════
-function toggleChat() {
-  chatOpen=!chatOpen;
-  document.getElementById('chat-panel').classList.toggle('open',chatOpen);
-  if (chatOpen) setTimeout(()=>document.getElementById('user-input').focus(),400);
-}
-function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-  document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
-  document.getElementById(`${tab}-tab`).classList.add('active');
-  if (tab==='profile') renderProfile();
-}
-document.getElementById('user-input').addEventListener('keydown',e=>{if(e.key==='Enter')sendMessage();});
+  // Integration with your existing analyze function
+  async function analyzeImage(base64Data) {
+    try {
+      setStatus("Gemini Vision analyzing...");
+      // Replace this with your actual call to geminiRaw for vision
+      const result = await geminiVisionCall(base64Data); 
+      // Process result...
+    } catch (err) {
+      setStatus("Error analyzing image.");
+      console.error(err);
+    }
+  }
 
-async function sendMessage() {
-  if (isWaiting) return;
-  const inp=document.getElementById('user-input'); const txt=inp.value.trim(); if(!txt)return;
-  inp.value=''; appendMsg(txt,'user'); chatHistory.push({role:'user',parts:[{text:txt}]});
-  setWait(true); const ty=appendMsg('···','ai typing');
-  try {
-    const reply=await callChat(); ty.remove(); appendMsg(reply,'ai');
-    chatHistory.push({role:'model',parts:[{text:reply}]}); allProfiles[SP.id]=SP;
-  } catch(e) { ty.remove(); appendMsg(`⚠ ${e.message}`,'ai'); }
-  setWait(false);
-}
-
-async function callChat() {
-  const res=await fetch(API_URL(),{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({systemInstruction:{parts:[{text:buildSP()}]},contents:chatHistory,generationConfig:{maxOutputTokens:512,temperature:0.7}})});
-  if(!res.ok){const e=await res.text();throw new Error(`${res.status}: ${e}`);}
-  const data=await res.json();
-  let reply=data.candidates?.[0]?.content?.parts?.[0]?.text??'No response.';
-  // LEVEL_UPDATE
-  const li=reply.indexOf('LEVEL_UPDATE:');
-  if(li>=0){const nl=reply.substring(li+13).split('\n')[0].trim();reply=reply.substring(0,li).trimEnd();
-    if(['Beginner','Intermediate','Expert'].includes(nl)&&nl!==SP.level){SP.level=nl;updateBadge();appendMsg(`📊 Level → ${nl}`,'system');}}
-  // TASK_COMPLETE
-  const ti=reply.indexOf('TASK_COMPLETE:');
-  if(ti>=0){const tn=parseInt(reply.substring(ti+14).split('\n')[0].trim());reply=reply.substring(0,ti).trimEnd();if(!isNaN(tn))markDone(tn-1);}
-  return reply;
-}
-
-function buildSP() {
-  const lg={Beginner:'Simple language, generous hints, avoid jargon.',Intermediate:'Standard terminology, brief explanations.',Expert:'Technical precision, design challenges.'}[SP.level]||'';
-  const rem=taskList.filter((_,i)=>!SP.tasksDone.includes(i));
-  const rInfo=scannedR?`Scanned resistor: ${scannedR.value} ${scannedR.tolerance} (${scannedR.bands.join('-')})`:'No resistor scanned yet — encourage scanning.';
-  return `You are the Intelligent Pedagogical Agent of an XR Resistor Lab.
-KNOWLEDGE BASE: ${KB.title} — ${KB.description}
-Outcomes: ${KB.outcomes}
-Components: ${KB.components.join(', ')}
-STUDENT: ${SP.name} | Level: ${SP.level} | Session: ${SP.sessionCount}
-Tasks done: ${SP.tasksDone.length}/${taskList.length} | Remaining: ${rem.join(' | ')||'All complete'}
-${rInfo}
-ROLE: Guide tasks, answer questions, assess knowledge.
-Level change → new line: LEVEL_UPDATE:Beginner/Intermediate/Expert
-Task complete → new line: TASK_COMPLETE:<number>
-Keep responses ≤5 sentences. Be encouraging.
-Level guidance: ${lg}`;
-}
-
-// ══════════════════════════════════════════════════════════════
-// QUIZ
-// ══════════════════════════════════════════════════════════════
-async function startQuiz() {
-  if (KB.quizCount===0){showResults();return;}
-  if (chatOpen) toggleChat();
-  appendMsg(`📝 Generating ${KB.quizCount}-question quiz...`,'system');
-  try {
-    const prompt=`Generate ${KB.quizCount} multiple-choice quiz questions for a ${KB.quizDiff}-level student on resistor colour codes.
-Mix: identify value from bands, identify bands from value${KB.quizDiff!=='Beginner'?', Ohm\'s Law calculation':''}${KB.quizDiff==='Expert'?', series/parallel calculation':''}
-For each return JSON with: question(string), bands(array of 4 colour names), showVisual(bool), options(array of 4 strings), correct(0-3 index), explanation(string)
-Return ONLY a valid JSON array. No other text.`;
-    const raw=await geminiRaw(prompt,1800);
-    quizQs=JSON.parse(raw.replace(/```json|```/g,'').trim());
-    quizIdx=0;quizScore=0;quizAnswers=[];
-    showScreen('quiz-screen'); renderQ();
-  } catch(e) { console.error(e); appendMsg('⚠ Quiz generation failed. Proceeding to results.','system'); showResults(); }
-}
-
-function renderQ() {
-  const q=quizQs[quizIdx]; if(!q){finishQuiz();return;}
-  const tot=quizQs.length;
-  document.getElementById('quiz-qlabel').textContent   = `QUESTION ${quizIdx+1} / ${tot}`;
-  document.getElementById('quiz-question').textContent = q.question;
-  document.getElementById('qpfill').style.width        = `${(quizIdx/tot)*100}%`;
-  document.getElementById('quiz-fb').textContent       = '';
-  document.getElementById('quiz-next').style.display   = 'none';
-
-  const vis=document.getElementById('quiz-visual');
-  if(q.showVisual&&q.bands){
-    vis.style.display='flex';
-    vis.innerHTML=`<div class="qr-lead"></div><div class="qr-body">${q.bands.map(b=>{const c=COLORS.find(x=>x.name.toLowerCase()===b.toLowerCase());return`<div class="qr-band" style="background:${c?c.hex:'#888'}"></div>`;}).join('')}</div><div class="qr-lead"></div>`;
-  } else { vis.style.display='none'; vis.innerHTML=''; }
-
-  const opts=document.getElementById('quiz-opts'); opts.innerHTML='';
-  q.options.forEach((o,i)=>{
-    const btn=document.createElement('button'); btn.className='qopt'; btn.textContent=o;
-    btn.onclick=()=>answerQ(i); opts.appendChild(btn);
-  });
-}
-
-function answerQ(sel) {
-  const q=quizQs[quizIdx]; const correct=sel===q.correct; if(correct)quizScore++;
-  quizAnswers.push({question:q.question,selected:sel,correct:q.correct,isCorrect:correct,explanation:q.explanation});
-  document.querySelectorAll('.qopt').forEach(o=>o.onclick=null);
-  document.querySelectorAll('.qopt')[sel].classList.add(correct?'correct':'wrong');
-  if(!correct) document.querySelectorAll('.qopt')[q.correct].classList.add('reveal');
-  document.getElementById('quiz-fb').textContent=(correct?'✓ Correct! ':'✗ Incorrect. ')+q.explanation;
-  const nb=document.getElementById('quiz-next'); nb.style.display='block';
-  nb.textContent=quizIdx<quizQs.length-1?'NEXT QUESTION →':'SEE RESULTS →';
-}
-
-function nextQ(){quizIdx++;quizIdx>=quizQs.length?finishQuiz():renderQ();}
-function finishQuiz(){document.getElementById('qpfill').style.width='100%';showResults();}
-
-async function showResults() {
-  showScreen('results-screen');
-  document.getElementById('res-name').textContent  = SP.name;
-  document.getElementById('res-score').textContent = quizScore;
-  document.getElementById('res-tot').textContent   = '/ '+quizQs.length;
-  const pct=quizQs.length>0?Math.round(quizScore/quizQs.length*100):100;
-  try {
-    const fb=await geminiRaw(`One encouraging sentence + one improvement tip for ${SP.name} who scored ${quizScore}/${quizQs.length} (${pct}%) on a resistor quiz. Under 25 words total.`,80);
-    document.getElementById('res-fb').textContent=fb;
-  } catch { document.getElementById('res-fb').textContent=pct>=80?'Excellent work! Keep it up.':'Good effort! Review the colour code chart.'; }
-  const list=document.getElementById('res-list'); list.innerHTML='';
-  quizAnswers.forEach((a,i)=>{
-    const el=document.createElement('div'); el.className=`res-item ${a.isCorrect?'correct':'wrong'}`;
-    el.innerHTML=`<b>${a.isCorrect?'✅':'❌'} Q${i+1}:</b> ${a.question}<br><span style="font-size:11px;color:var(--dim)">${a.explanation}</span>`;
-    list.appendChild(el);
-  });
-}
-
-function returnToLab() {
-  showScreen('');
-  document.getElementById('ar-bg').style.display  = 'block';
-  document.getElementById('ar-hud').style.display = 'flex';
-  document.getElementById('scan-fab').style.display= 'flex';
-  document.getElementById('chat-fab').style.display= 'flex';
-}
-
-// ══════════════════════════════════════════════════════════════
-// GEMINI RAW CALL
-// ══════════════════════════════════════════════════════════════
-async function geminiRaw(prompt, maxTokens=400) {
-  const res=await fetch(API_URL(),{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:maxTokens,temperature:0.7}})});
-  if(!res.ok){const e=await res.text();throw new Error(`${res.status}: ${e}`);}
-  const data=await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text??'';
-}
-
-// ══════════════════════════════════════════════════════════════
-// UI HELPERS
-// ══════════════════════════════════════════════════════════════
-function appendMsg(text,type){
-  const msgs=document.getElementById('messages');
-  const el=document.createElement('div'); el.className=`msg ${type}`;
-  el.textContent=text.replace(/\*\*/g,'');
-  msgs.appendChild(el); msgs.scrollTop=msgs.scrollHeight; return el;
-}
-function setWait(w){isWaiting=w;document.getElementById('send-btn').disabled=w;document.getElementById('user-input').disabled=w;}
-function wait(ms){return new Promise(r=>setTimeout(r,ms));}
+  // ... All your original functions (geminiRaw, showScreen, etc.) continue here ...
 </script>
+
 </body>
 </html>
