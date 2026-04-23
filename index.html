@@ -71,6 +71,21 @@
     .lstep.done   { color:var(--accent2); border-color:rgba(0,255,157,.3); }
     .lstep .dot   { width:7px; height:7px; border-radius:50%; background:currentColor; flex-shrink:0; }
 
+    /* ── SCAN METHOD SELECTOR ──────────────────── */
+    #scan-method-screen { gap:0; }
+    .scan-method-btn {
+      width:100%; max-width:420px; padding:18px 20px;
+      background:rgba(255,255,255,.03); border:1px solid var(--border);
+      border-radius:var(--r); cursor:pointer; transition:all .2s;
+      display:flex; align-items:center; gap:16px; margin-bottom:10px;
+      text-align:left;
+    }
+    .scan-method-btn:active { transform:scale(.98); }
+    .scan-method-btn:hover  { border-color:var(--accent); background:rgba(0,200,255,.05); }
+    .smb-icon { font-size:28px; flex-shrink:0; }
+    .smb-title { font-family:var(--mono); font-size:12px; color:var(--accent); letter-spacing:1px; margin-bottom:3px; }
+    .smb-sub   { font-size:12px; color:var(--dim); line-height:1.4; }
+
     /* ── CAMERA ────────────────────────────────── */
     #camera-screen { padding:0; justify-content:flex-start; }
     #camera-video  { width:100%; height:100dvh; object-fit:cover; display:block; }
@@ -78,14 +93,16 @@
     #cam-topbar    { width:100%; display:flex; align-items:center; justify-content:space-between; pointer-events:auto; }
     .cam-logo { font-family:var(--mono); font-size:11px; letter-spacing:3px; color:var(--accent); text-shadow:0 0 10px var(--accent); }
     #cam-close { background:none; border:none; color:var(--dim); font-size:22px; cursor:pointer; padding:4px 8px; }
-    #scan-frame { width:220px; height:220px; position:relative; display:flex; align-items:center; justify-content:center; }
+    #scan-frame { width:240px; height:120px; position:relative; display:flex; align-items:center; justify-content:center; }
     .sfc { position:absolute; width:24px; height:24px; border-color:var(--accent); border-style:solid; }
     .sfc.tl{top:0;left:0;border-width:3px 0 0 3px} .sfc.tr{top:0;right:0;border-width:3px 3px 0 0}
     .sfc.bl{bottom:0;left:0;border-width:0 0 3px 3px} .sfc.br{bottom:0;right:0;border-width:0 3px 3px 0}
-    #scan-hint { font-family:var(--mono); font-size:10px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-top:10px; animation:pulse 2s ease-in-out infinite; }
+    /* horizontal guide line through resistor */
+    #scan-guide { position:absolute; left:8px; right:8px; top:50%; height:2px; background:rgba(0,200,255,.35); border-radius:1px; }
+    #scan-hint { font-family:var(--mono); font-size:10px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-top:10px; animation:pulse 2s ease-in-out infinite; text-align:center; }
     #scan-btn { pointer-events:auto; background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; border-radius:50%; width:72px; height:72px; font-size:28px; cursor:pointer; box-shadow:0 0 24px rgba(0,200,255,.4); transition:transform .1s; }
     #scan-btn:active { transform:scale(.93); }
-    #scan-status { pointer-events:none; font-family:var(--mono); font-size:11px; color:var(--accent); letter-spacing:2px; text-align:center; animation:pulse 1.5s ease-in-out infinite; min-height:20px; }
+    #scan-status { pointer-events:none; font-family:var(--mono); font-size:11px; color:var(--accent); letter-spacing:2px; text-align:center; min-height:20px; }
 
     /* ── BAND EDITOR ───────────────────────────── */
     .band-editor-row { width:100%; max-width:420px; display:flex; gap:6px; margin-bottom:8px; }
@@ -321,25 +338,53 @@
   </div>
 </div>
 
+<!-- SCREEN 5.5 — SCAN METHOD SELECTOR -->
+<div id="scan-method-screen" class="screen hidden">
+  <div class="screen-logo">◈ ADD RESISTOR</div>
+  <div class="screen-icon">⏚</div>
+  <div class="screen-title">How would you like to identify your resistor?</div>
+  <div class="screen-sub">Choose the method that works best for you.</div>
+
+  <button class="scan-method-btn" onclick="openCamera()">
+    <div class="smb-icon">📷</div>
+    <div><div class="smb-title">CAPTURE PHOTO</div><div class="smb-sub">Use your camera to photograph the resistor. Local colour detection analyses the bands instantly.</div></div>
+  </button>
+
+  <button class="scan-method-btn" onclick="openGallery()">
+    <div class="smb-icon">🖼</div>
+    <div><div class="smb-title">UPLOAD FROM GALLERY</div><div class="smb-sub">Pick an existing photo of the resistor from your device gallery.</div></div>
+  </button>
+
+  <button class="scan-method-btn" onclick="manualEntry()">
+    <div class="smb-icon">✏️</div>
+    <div><div class="smb-title">ENTER COLOURS MANUALLY</div><div class="smb-sub">Skip image detection. Select the colour bands yourself using the colour picker.</div></div>
+  </button>
+
+  <input type="file" id="gallery-input" accept="image/*" style="display:none;" onchange="handleGalleryImage(event)"/>
+  <hr class="divider"/>
+  <button class="btn btn-secondary" onclick="returnToLab()">← BACK TO LAB</button>
+</div>
+
 <!-- SCREEN 6 — CAMERA -->
 <div id="camera-screen" class="screen hidden">
   <video id="camera-video" autoplay playsinline muted></video>
   <canvas id="capture-canvas" style="display:none;"></canvas>
   <div id="cam-overlay">
     <div id="cam-topbar">
-      <div class="cam-logo">◈ SCAN RESISTOR</div>
+      <div class="cam-logo">◈ CAPTURE RESISTOR</div>
       <button id="cam-close" onclick="closeCamera()">✕</button>
     </div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div id="scan-frame">
         <div class="sfc tl"></div><div class="sfc tr"></div>
         <div class="sfc bl"></div><div class="sfc br"></div>
+        <div id="scan-guide"></div>
       </div>
-      <div id="scan-hint">hold resistor steady within frame</div>
+      <div id="scan-hint">align resistor horizontally within frame</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
       <div id="scan-status"></div>
-      <button id="scan-btn" onclick="captureAndAnalyse()">📷</button>
+      <button id="scan-btn" onclick="captureFromCamera()">📷</button>
     </div>
   </div>
 </div>
@@ -358,7 +403,7 @@
     <div class="dv-sub"   id="decoded-sub">Select bands above</div>
   </div>
   <button class="btn btn-primary"   onclick="confirmBands()">✓ &nbsp; CONFIRM &amp; CONTINUE</button>
-  <button class="btn btn-secondary" onclick="openCamera()">↩ &nbsp; RE-SCAN</button>
+  <button class="btn btn-secondary" onclick="showScanMethod()">↩ &nbsp; TRY AGAIN</button>
   <div id="color-picker">
     <div class="cp-title" id="cp-title">SELECT COLOUR</div>
     <div class="cp-grid"  id="cp-grid"></div>
@@ -380,7 +425,7 @@
   <div id="comp-strip"></div>
 </div>
 
-<button id="scan-fab" class="fab" onclick="openCamera()" title="Scan resistor">📷</button>
+<button id="scan-fab" class="fab" onclick="showScanMethod()" title="Scan resistor">📷</button>
 <button id="chat-fab" class="fab" onclick="toggleChat()" title="Open tutor">💬</button>
 
 <!-- CHAT PANEL -->
@@ -642,7 +687,7 @@ async function launchAR() {
   const welcome = await buildWelcome();
   appendMsg(welcome, 'ai');
   chatHistory.push({ role:'model', parts:[{ text:welcome }] });
-  setTimeout(()=>appendMsg('📷 Tap the camera button (bottom right) to scan your resistor and begin!','system'), 700);
+  setTimeout(()=>appendMsg('📷 Tap the camera button to scan your resistor. You can capture a photo, upload from gallery, or enter the colours manually.','system'), 700);
 }
 
 async function buildWelcome() {
@@ -654,22 +699,54 @@ async function buildWelcome() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// CAMERA
+// SCAN METHOD SELECTOR
 // ══════════════════════════════════════════════════════════════
-async function openCamera() {
+function openCamera() {
+  showScreen('camera-screen');
   document.getElementById('scan-status').textContent = '';
-  document.getElementById('camera-screen').classList.remove('hidden');
-  try {
-    if (!cameraStream) cameraStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false });
-    document.getElementById('camera-video').srcObject = cameraStream;
-  } catch { document.getElementById('scan-status').textContent='⚠ Camera unavailable'; }
+  navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false })
+    .then(stream => { cameraStream=stream; document.getElementById('camera-video').srcObject=stream; })
+    .catch(() => { document.getElementById('scan-status').textContent='⚠ Camera unavailable — try gallery upload'; });
 }
 
 function closeCamera() {
-  document.getElementById('camera-screen').classList.add('hidden');
+  showScreen('scan-method-screen');
 }
 
-async function captureAndAnalyse() {
+function openGallery() {
+  document.getElementById('gallery-input').click();
+}
+
+function manualEntry() {
+  // Go straight to band editor with blank/default bands
+  showBandEditor({ bands:['Brown','Black','Red','Gold'], confidence:'manual', notes:'Enter the colour bands manually using the colour picker below.' });
+}
+
+async function handleGalleryImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  // Reset input so same file can be re-selected
+  event.target.value = '';
+  showScreen('scan-method-screen');
+  document.getElementById('scan-status') && (document.getElementById('scan-status').textContent = '');
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const img = new Image();
+    img.onload = async () => {
+      const canvas = document.getElementById('capture-canvas');
+      canvas.width  = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      const b64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+      await processImage(b64, 'gallery');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function captureFromCamera() {
   const video  = document.getElementById('camera-video');
   const canvas = document.getElementById('capture-canvas');
   const status = document.getElementById('scan-status');
@@ -677,28 +754,158 @@ async function captureAndAnalyse() {
   canvas.height = video.videoHeight || 480;
   canvas.getContext('2d').drawImage(video, 0, 0);
   const b64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
-
-  status.textContent = 'ANALYSING WITH GEMINI VISION...';
+  status.textContent = 'DETECTING...';
   document.getElementById('scan-btn').disabled = true;
-
-  try {
-    const result = await analyseImage(b64);
-    status.textContent = '✓ DONE';
-    setTimeout(()=>{ closeCamera(); showBandEditor(result); }, 500);
-  } catch(e) {
-    status.textContent = '⚠ Could not identify resistor. Try better lighting.';
-    console.error(e);
-  }
+  await processImage(b64, 'camera');
   document.getElementById('scan-btn').disabled = false;
 }
 
-async function analyseImage(b64) {
-  const prompt = `Analyse this resistor image. Identify the 4 colour bands left to right.
-Use ONLY these names: Black, Brown, Red, Orange, Yellow, Green, Blue, Violet, Grey, White, Gold, Silver
-Return ONLY valid JSON, no other text:
-{"bands":["c1","c2","c3","c4"],"confidence":"high|medium|low","notes":"brief observation"}
-If unclear, return: {"bands":["Brown","Black","Red","Gold"],"confidence":"low","notes":"Could not clearly identify"}`;
+// ══════════════════════════════════════════════════════════════
+// COLOUR DETECTION ENGINE
+// ══════════════════════════════════════════════════════════════
 
+// Reference RGB values for each resistor colour
+const COLOR_REF = [
+  { name:'Black',  r:26,   g:26,   b:26  },
+  { name:'Brown',  r:139,  g:69,   b:19  },
+  { name:'Red',    r:204,  g:0,    b:0   },
+  { name:'Orange', r:232,  g:96,   b:0   },
+  { name:'Yellow', r:232,  g:208,  b:0   },
+  { name:'Green',  r:0,    g:170,  b:68  },
+  { name:'Blue',   r:0,    g:85,   b:204 },
+  { name:'Violet', r:136,  g:0,    b:204 },
+  { name:'Grey',   r:119,  g:119,  b:119 },
+  { name:'White',  r:238,  g:238,  b:238 },
+  { name:'Gold',   r:200,  g:160,  b:0   },
+  { name:'Silver', r:170,  g:170,  b:170 },
+];
+
+function colorDistance(r1,g1,b1, r2,g2,b2) {
+  // Weighted Euclidean distance — human eye is more sensitive to green
+  return Math.sqrt(2*(r1-r2)**2 + 4*(g1-g2)**2 + 3*(b1-b2)**2);
+}
+
+function nearestColor(r,g,b) {
+  let best=COLOR_REF[0], bestDist=Infinity;
+  for (const c of COLOR_REF) {
+    const d = colorDistance(r,g,b, c.r,c.g,c.b);
+    if (d < bestDist) { bestDist=d; best=c; }
+  }
+  return { name:best.name, dist:bestDist };
+}
+
+function detectBandsLocally(canvas) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // Sample a horizontal strip at 3 vertical positions (40%, 50%, 60% height)
+  // Average them for robustness against lighting gradients
+  const sampleRows = [0.40, 0.50, 0.60].map(f => Math.floor(H * f));
+  const numSamples = 120; // horizontal resolution
+  const step = W / numSamples;
+
+  // Build averaged pixel profile across the 3 rows
+  const profile = [];
+  for (let xi = 0; xi < numSamples; xi++) {
+    const x = Math.floor(xi * step);
+    let rSum=0, gSum=0, bSum=0;
+    for (const y of sampleRows) {
+      const px = ctx.getImageData(x, y, 1, 1).data;
+      rSum+=px[0]; gSum+=px[1]; bSum+=px[2];
+    }
+    profile.push({ r:rSum/3, g:gSum/3, b:bSum/3 });
+  }
+
+  // Detect resistor body colour (dominant beige/tan in the middle 60% of width)
+  const midStart = Math.floor(numSamples*0.2), midEnd = Math.floor(numSamples*0.8);
+  let bodyR=0, bodyG=0, bodyB=0, bodyCount=0;
+  for (let i=midStart; i<midEnd; i++) {
+    bodyR+=profile[i].r; bodyG+=profile[i].g; bodyB+=profile[i].b; bodyCount++;
+  }
+  bodyR/=bodyCount; bodyG/=bodyCount; bodyB/=bodyCount;
+
+  // A pixel is "band" if it differs significantly from body colour
+  const BAND_THRESH = 45;
+  const isBand = profile.map(p => colorDistance(p.r,p.g,p.b, bodyR,bodyG,bodyB) > BAND_THRESH);
+
+  // Find contiguous band regions (ignore regions < 3 samples wide)
+  const regions = [];
+  let inBand=false, start=0;
+  for (let i=0; i<isBand.length; i++) {
+    if (isBand[i] && !inBand) { inBand=true; start=i; }
+    else if (!isBand[i] && inBand) {
+      inBand=false;
+      if (i-start >= 3) regions.push({ start, end:i-1 });
+    }
+  }
+  if (inBand && isBand.length-start>=3) regions.push({ start, end:isBand.length-1 });
+
+  // We expect 4 bands — take the 4 most prominent regions
+  const sorted = [...regions].sort((a,b)=>(b.end-b.start)-(a.end-a.start));
+  const top4   = sorted.slice(0,4).sort((a,b)=>a.start-b.start);
+
+  if (top4.length < 3) return null; // detection failed
+
+  // Identify colour of each band from average pixels in that region
+  const bandColors = top4.map(reg => {
+    let r=0,g=0,b=0,cnt=0;
+    for (let i=reg.start; i<=reg.end; i++) { r+=profile[i].r; g+=profile[i].g; b+=profile[i].b; cnt++; }
+    r/=cnt; g/=cnt; b/=cnt;
+    return nearestColor(r,g,b);
+  });
+
+  // Confidence: based on average colour distance (lower = more confident)
+  const avgDist = bandColors.reduce((s,c)=>s+c.dist, 0) / bandColors.length;
+  const confidence = avgDist < 60 ? 'high' : avgDist < 100 ? 'medium' : 'low';
+
+  // Pad to 4 if only 3 found (missing tolerance band — default to Gold)
+  while (bandColors.length < 4) bandColors.push({ name:'Gold', dist:999 });
+
+  return {
+    bands: bandColors.map(c=>c.name),
+    confidence,
+    notes: `Local detection: ${top4.length} bands found. Avg match score: ${Math.round(avgDist)}. ${confidence==='low'?'Please verify and correct bands below.':'Bands detected successfully.'}`,
+    avgDist
+  };
+}
+
+async function processImage(b64, source) {
+  // Step 1: Try local canvas detection
+  const canvas = document.getElementById('capture-canvas');
+  let result = detectBandsLocally(canvas);
+
+  // Step 2: If local confidence is low, silently call Gemini Vision
+  if (!result || result.confidence === 'low') {
+    try {
+      const geminiResult = await geminiVision(b64);
+      // Only use Gemini result if it parsed correctly
+      if (geminiResult?.bands?.length >= 3) {
+        result = {
+          bands:      geminiResult.bands,
+          confidence: geminiResult.confidence || 'medium',
+          notes:      result
+            ? `Detection refined. ${geminiResult.notes||'Please verify the bands below.'}`
+            : `Image analysis complete. ${geminiResult.notes||'Please verify the bands below.'}`
+        };
+      }
+    } catch { /* Gemini failed too — use local result or defaults */ }
+  }
+
+  // Step 3: Fall back to defaults if everything failed
+  if (!result) {
+    result = { bands:['Brown','Black','Red','Gold'], confidence:'low', notes:'Could not detect bands automatically. Please select colours manually below.' };
+  }
+
+  // Close camera if open, go to band editor
+  document.getElementById('camera-screen').classList.add('hidden');
+  showBandEditor(result);
+}
+
+async function geminiVision(b64) {
+  const prompt = `Analyse this resistor image. Identify the 4 colour bands left to right.
+Use ONLY: Black, Brown, Red, Orange, Yellow, Green, Blue, Violet, Grey, White, Gold, Silver
+Return ONLY valid JSON: {"bands":["c1","c2","c3","c4"],"confidence":"high|medium|low","notes":"brief"}
+If unclear: {"bands":["Brown","Black","Red","Gold"],"confidence":"low","notes":"Could not identify"}`;
   const res = await fetch(API_URL(), {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
@@ -706,26 +913,39 @@ If unclear, return: {"bands":["Brown","Black","Red","Gold"],"confidence":"low","
         { inlineData:{ mimeType:'image/jpeg', data:b64 }},
         { text:prompt }
       ]}],
-      generationConfig:{ maxOutputTokens:150, temperature:0.1 }
+      generationConfig:{ maxOutputTokens:120, temperature:0.1 }
     })
   });
   if (!res.ok) throw new Error(res.status);
   const data = await res.json();
   let txt = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
-  txt = txt.replace(/```json|```/g,'').trim();
-  return JSON.parse(txt);
+  return JSON.parse(txt.replace(/```json|```/g,'').trim());
 }
 
 // ══════════════════════════════════════════════════════════════
 // BAND EDITOR
 // ══════════════════════════════════════════════════════════════
+function showScanMethod() {
+  // Stop camera stream if running
+  if (cameraStream) { cameraStream.getTracks().forEach(t=>t.stop()); cameraStream=null; }
+  showScreen('scan-method-screen');
+}
+
 function showBandEditor(result) {
   showScreen('band-editor-screen');
   const conf = result.confidence || 'low';
-  const confColor = conf==='high' ? 'var(--accent2)' : conf==='medium' ? 'var(--accent3)' : 'var(--danger)';
+  let noteColor, notePrefix;
+  if (conf === 'manual') {
+    noteColor = 'var(--accent)'; notePrefix = '✏️ Manual Entry';
+  } else if (conf === 'high') {
+    noteColor = 'var(--accent2)'; notePrefix = '✓ Detection: HIGH confidence';
+  } else if (conf === 'medium') {
+    noteColor = 'var(--accent3)'; notePrefix = '⚠ Detection: MEDIUM confidence';
+  } else {
+    noteColor = 'var(--danger)';  notePrefix = '⚠ Detection: LOW confidence';
+  }
   document.getElementById('scan-note').innerHTML =
-    `<b style="color:${confColor}">Gemini Vision — Confidence: ${conf.toUpperCase()}</b><br>${result.notes||'Please verify the detected bands below.'}`;
-
+    `<b style="color:${noteColor}">${notePrefix}</b><br>${result.notes||'Verify the bands below and correct any that look wrong.'}`;
   const bands = (result.bands||['Brown','Black','Red','Gold']).slice(0,4);
   currentBands = bands.map(n=>COLORS.find(c=>c.name.toLowerCase()===n.toLowerCase())||COLORS[1]);
   renderBands(); updateDecoded(); buildPicker();
