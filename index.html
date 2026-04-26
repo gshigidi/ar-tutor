@@ -739,7 +739,7 @@ async function handleGalleryImage(event) {
       canvas.height = img.naturalHeight;
       canvas.getContext('2d').drawImage(img, 0, 0);
       const b64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
-      await processImage(b64, 'gallery');
+      await processImage(b64);
     };
     img.src = e.target.result;
   };
@@ -754,149 +754,41 @@ async function captureFromCamera() {
   canvas.height = video.videoHeight || 480;
   canvas.getContext('2d').drawImage(video, 0, 0);
   const b64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
-  status.textContent = 'DETECTING...';
+  status.textContent = 'ANALYSING WITH GEMINI VISION...';
   document.getElementById('scan-btn').disabled = true;
-  await processImage(b64, 'camera');
+  await processImage(b64);
   document.getElementById('scan-btn').disabled = false;
+  status.textContent = '';
 }
 
 // ══════════════════════════════════════════════════════════════
-// COLOUR DETECTION ENGINE
+// IMAGE PROCESSING — GEMINI VISION ONLY
 // ══════════════════════════════════════════════════════════════
 
-// Reference RGB values for each resistor colour
-const COLOR_REF = [
-  { name:'Black',  r:26,   g:26,   b:26  },
-  { name:'Brown',  r:139,  g:69,   b:19  },
-  { name:'Red',    r:204,  g:0,    b:0   },
-  { name:'Orange', r:232,  g:96,   b:0   },
-  { name:'Yellow', r:232,  g:208,  b:0   },
-  { name:'Green',  r:0,    g:170,  b:68  },
-  { name:'Blue',   r:0,    g:85,   b:204 },
-  { name:'Violet', r:136,  g:0,    b:204 },
-  { name:'Grey',   r:119,  g:119,  b:119 },
-  { name:'White',  r:238,  g:238,  b:238 },
-  { name:'Gold',   r:200,  g:160,  b:0   },
-  { name:'Silver', r:170,  g:170,  b:170 },
-];
-
-function colorDistance(r1,g1,b1, r2,g2,b2) {
-  // Weighted Euclidean distance — human eye is more sensitive to green
-  return Math.sqrt(2*(r1-r2)**2 + 4*(g1-g2)**2 + 3*(b1-b2)**2);
-}
-
-function nearestColor(r,g,b) {
-  let best=COLOR_REF[0], bestDist=Infinity;
-  for (const c of COLOR_REF) {
-    const d = colorDistance(r,g,b, c.r,c.g,c.b);
-    if (d < bestDist) { bestDist=d; best=c; }
-  }
-  return { name:best.name, dist:bestDist };
-}
-
-function detectBandsLocally(canvas) {
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-
-  // Sample a horizontal strip at 3 vertical positions (40%, 50%, 60% height)
-  // Average them for robustness against lighting gradients
-  const sampleRows = [0.40, 0.50, 0.60].map(f => Math.floor(H * f));
-  const numSamples = 120; // horizontal resolution
-  const step = W / numSamples;
-
-  // Build averaged pixel profile across the 3 rows
-  const profile = [];
-  for (let xi = 0; xi < numSamples; xi++) {
-    const x = Math.floor(xi * step);
-    let rSum=0, gSum=0, bSum=0;
-    for (const y of sampleRows) {
-      const px = ctx.getImageData(x, y, 1, 1).data;
-      rSum+=px[0]; gSum+=px[1]; bSum+=px[2];
+async function processImage(b64) {
+  let result;
+  try {
+    const geminiResult = await geminiVision(b64);
+    if (geminiResult?.bands?.length >= 3) {
+      result = {
+        bands:      geminiResult.bands,
+        confidence: geminiResult.confidence || 'medium',
+        notes:      geminiResult.notes || 'Please verify the detected bands below.'
+      };
     }
-    profile.push({ r:rSum/3, g:gSum/3, b:bSum/3 });
+  } catch(e) {
+    console.error('Gemini Vision failed:', e);
   }
 
-  // Detect resistor body colour (dominant beige/tan in the middle 60% of width)
-  const midStart = Math.floor(numSamples*0.2), midEnd = Math.floor(numSamples*0.8);
-  let bodyR=0, bodyG=0, bodyB=0, bodyCount=0;
-  for (let i=midStart; i<midEnd; i++) {
-    bodyR+=profile[i].r; bodyG+=profile[i].g; bodyB+=profile[i].b; bodyCount++;
-  }
-  bodyR/=bodyCount; bodyG/=bodyCount; bodyB/=bodyCount;
-
-  // A pixel is "band" if it differs significantly from body colour
-  const BAND_THRESH = 45;
-  const isBand = profile.map(p => colorDistance(p.r,p.g,p.b, bodyR,bodyG,bodyB) > BAND_THRESH);
-
-  // Find contiguous band regions (ignore regions < 3 samples wide)
-  const regions = [];
-  let inBand=false, start=0;
-  for (let i=0; i<isBand.length; i++) {
-    if (isBand[i] && !inBand) { inBand=true; start=i; }
-    else if (!isBand[i] && inBand) {
-      inBand=false;
-      if (i-start >= 3) regions.push({ start, end:i-1 });
-    }
-  }
-  if (inBand && isBand.length-start>=3) regions.push({ start, end:isBand.length-1 });
-
-  // We expect 4 bands — take the 4 most prominent regions
-  const sorted = [...regions].sort((a,b)=>(b.end-b.start)-(a.end-a.start));
-  const top4   = sorted.slice(0,4).sort((a,b)=>a.start-b.start);
-
-  if (top4.length < 3) return null; // detection failed
-
-  // Identify colour of each band from average pixels in that region
-  const bandColors = top4.map(reg => {
-    let r=0,g=0,b=0,cnt=0;
-    for (let i=reg.start; i<=reg.end; i++) { r+=profile[i].r; g+=profile[i].g; b+=profile[i].b; cnt++; }
-    r/=cnt; g/=cnt; b/=cnt;
-    return nearestColor(r,g,b);
-  });
-
-  // Confidence: based on average colour distance (lower = more confident)
-  const avgDist = bandColors.reduce((s,c)=>s+c.dist, 0) / bandColors.length;
-  const confidence = avgDist < 60 ? 'high' : avgDist < 100 ? 'medium' : 'low';
-
-  // Pad to 4 if only 3 found (missing tolerance band — default to Gold)
-  while (bandColors.length < 4) bandColors.push({ name:'Gold', dist:999 });
-
-  return {
-    bands: bandColors.map(c=>c.name),
-    confidence,
-    notes: `Local detection: ${top4.length} bands found. Avg match score: ${Math.round(avgDist)}. ${confidence==='low'?'Please verify and correct bands below.':'Bands detected successfully.'}`,
-    avgDist
-  };
-}
-
-async function processImage(b64, source) {
-  // Step 1: Try local canvas detection
-  const canvas = document.getElementById('capture-canvas');
-  let result = detectBandsLocally(canvas);
-
-  // Step 2: If local confidence is low, silently call Gemini Vision
-  if (!result || result.confidence === 'low') {
-    try {
-      const geminiResult = await geminiVision(b64);
-      // Only use Gemini result if it parsed correctly
-      if (geminiResult?.bands?.length >= 3) {
-        result = {
-          bands:      geminiResult.bands,
-          confidence: geminiResult.confidence || 'medium',
-          notes:      result
-            ? `Detection refined. ${geminiResult.notes||'Please verify the bands below.'}`
-            : `Image analysis complete. ${geminiResult.notes||'Please verify the bands below.'}`
-        };
-      }
-    } catch { /* Gemini failed too — use local result or defaults */ }
-  }
-
-  // Step 3: Fall back to defaults if everything failed
+  // Fall back to blank bands if Gemini failed — prompt student to enter manually
   if (!result) {
-    result = { bands:['Brown','Black','Red','Gold'], confidence:'low', notes:'Could not detect bands automatically. Please select colours manually below.' };
+    result = {
+      bands:      ['Brown','Black','Red','Gold'],
+      confidence: 'low',
+      notes:      'Could not analyse image. Please correct the bands manually below, or try a clearer photo.'
+    };
   }
 
-  // Close camera if open, go to band editor
   document.getElementById('camera-screen').classList.add('hidden');
   showBandEditor(result);
 }
