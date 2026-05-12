@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
-  <title>XR Resistor Lab</title>
+  <title>MR Resistor Lab</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;700&display=swap');
 
@@ -227,7 +227,7 @@
 
 <!-- SCREEN 1 — API KEY -->
 <div id="key-screen" class="screen">
-  <div class="screen-logo">◈ XR·RESISTOR·LAB</div>
+  <div class="screen-logo">◈ MR·RESISTOR·LAB</div>
   <div class="screen-icon">🔑</div>
   <div class="screen-title">Enter API Key</div>
   <div class="screen-sub">Powered by Google Gemini. Key is stored in session memory only — never in code.</div>
@@ -246,7 +246,7 @@
 
 <!-- SCREEN 2 — ROLE SELECTION -->
 <div id="role-screen" class="screen hidden">
-  <div class="screen-logo">◈ XR·RESISTOR·LAB</div>
+  <div class="screen-logo">◈ MR·RESISTOR·LAB</div>
   <div class="screen-icon">⏚</div>
   <div class="screen-title">Resistor Colour Code Lab</div>
   <div class="screen-sub">Select your role to continue.</div>
@@ -418,7 +418,7 @@
 <!-- AR HUD -->
 <div id="ar-hud" style="display:none;">
   <div id="topbar">
-    <div class="tb-left"><div class="tb-logo">◈ XR·RESISTOR·LAB</div><div id="tb-student"></div></div>
+    <div class="tb-left"><div class="tb-logo">◈ MR·RESISTOR·LAB</div><div id="tb-student"></div></div>
     <div class="tb-right"><div id="task-counter">0/0</div><div id="level-badge">⬡ BEGINNER</div></div>
   </div>
   <div id="task-card"><div class="tc-label">◈ CURRENT TASK</div><div id="task-text">Loading...</div></div>
@@ -1027,7 +1027,7 @@ function buildSP() {
   const lg={Beginner:'Simple language, generous hints, avoid jargon.',Intermediate:'Standard terminology, brief explanations.',Expert:'Technical precision, design challenges.'}[SP.level]||'';
   const rem=taskList.filter((_,i)=>!SP.tasksDone.includes(i));
   const rInfo=scannedR?`Scanned resistor: ${scannedR.value} ${scannedR.tolerance} (${scannedR.bands.join('-')})`:'No resistor scanned yet — encourage scanning.';
-  return `You are the Intelligent Pedagogical Agent of an XR Resistor Lab.
+  return `You are the Intelligent Pedagogical Agent of an MR Resistor Lab.
 KNOWLEDGE BASE: ${KB.title} — ${KB.description}
 Outcomes: ${KB.outcomes}
 Components: ${KB.components.join(', ')}
