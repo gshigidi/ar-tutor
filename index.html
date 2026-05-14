@@ -320,6 +320,17 @@
   <div class="field"><div class="field-label">Student ID</div><input id="student-id" type="text" placeholder="e.g. S20241234" autocomplete="off"/></div>
   <div id="returning-card" class="profile-card"><div class="pc-name" id="ret-name"></div><div class="pc-meta" id="ret-meta"></div></div>
   <div id="login-error" class="err-msg"></div>
+
+  <!-- Profile file upload -->
+  <div style="width:100%;max-width:420px;margin-bottom:14px;">
+    <div class="field-label">Returning student? Upload your saved profile file:</div>
+    <button class="btn btn-secondary" onclick="triggerProfileUpload()" style="margin-top:6px;">
+      ⬆ UPLOAD profile_ID.json
+    </button>
+    <input type="file" id="profile-upload-input" accept=".json" style="display:none;" onchange="handleProfileUpload(event)"/>
+    <div id="profile-upload-note" style="font-family:var(--mono);font-size:11px;margin-top:8px;min-height:16px;"></div>
+  </div>
+
   <button class="btn btn-primary"    onclick="studentLogin()">▶ &nbsp; START SESSION</button>
   <button class="btn btn-secondary"  onclick="showScreen('role-screen')">← BACK</button>
 </div>
@@ -609,7 +620,7 @@ function saveKB() {
 document.getElementById('student-id').addEventListener('input', function() {
   const id = this.value.trim().toUpperCase();
   const card = document.getElementById('returning-card');
-  const p = allProfiles[id] || loadProfile(id);
+  const p = allProfiles[id];
   if (p) {
     document.getElementById('ret-name').textContent = p.name;
     document.getElementById('ret-meta').textContent = `Level: ${p.level} · Sessions: ${p.sessionCount} · Tasks: ${p.tasksDone.length}`;
@@ -625,63 +636,69 @@ function studentLogin() {
   if (!name||!id) { err.textContent='⚠ Please enter name and ID'; err.style.display='block'; return; }
   err.style.display='none';
 
-  // Try loading from localStorage first, then fall back to in-memory allProfiles
-  const stored = loadProfile(id);
-  if (stored) {
-    SP = { ...stored, sessionCount: stored.sessionCount + 1 };
-  } else if (allProfiles[id]) {
+  if (allProfiles[id]) {
+    // Profile was loaded from uploaded JSON file
     SP = { ...allProfiles[id], sessionCount: allProfiles[id].sessionCount + 1 };
   } else {
-    SP = { name, id, level: 'Beginner', tasksDone:[], sessionCount:1, resistors:[] };
+    // New student — always starts at Beginner
+    SP = { name, id, level:'Beginner', tasksDone:[], sessionCount:1, resistors:[] };
   }
   allProfiles[id] = SP;
-  saveProfile();
   showScreen('scenario-screen');
   runLoading();
 }
 
-// ── Profile persistence via localStorage ──────────────────────
-function saveProfile() {
-  try {
-    const data = {
-      name:        SP.name,
-      id:          SP.id,
-      level:       SP.level,
-      tasksDone:   SP.tasksDone,
-      sessionCount:SP.sessionCount,
-      resistors:   SP.resistors,
-      savedAt:     new Date().toISOString()
-    };
-    localStorage.setItem('mrlab_profile_' + SP.id, JSON.stringify(data));
-  } catch(e) { console.warn('localStorage save failed:', e); }
+// ── Profile file upload ────────────────────────────────────────
+function triggerProfileUpload() {
+  document.getElementById('profile-upload-input').click();
 }
 
-function loadProfile(id) {
-  try {
-    const raw = localStorage.getItem('mrlab_profile_' + id);
-    return raw ? JSON.parse(raw) : null;
-  } catch(e) { return null; }
+function handleProfileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.id || !data.name) throw new Error('Invalid profile file');
+      allProfiles[data.id] = data;
+      // Show returning card
+      document.getElementById('student-id').value = data.id;
+      document.getElementById('student-name').value = data.name;
+      document.getElementById('ret-name').textContent = data.name;
+      document.getElementById('ret-meta').textContent =
+        `Level: ${data.level} · Sessions: ${data.sessionCount} · Tasks: ${data.tasksDone.length}`;
+      document.getElementById('returning-card').style.display = 'block';
+      document.getElementById('profile-upload-note').textContent = '✓ Profile loaded from file';
+      document.getElementById('profile-upload-note').style.color = 'var(--accent2)';
+    } catch(e) {
+      document.getElementById('profile-upload-note').textContent = '⚠ Invalid profile file';
+      document.getElementById('profile-upload-note').style.color = 'var(--danger)';
+    }
+  };
+  reader.readAsText(file);
 }
 
+// ── Profile file download ──────────────────────────────────────
 function downloadProfile() {
   const data = {
-    student:     SP.name,
+    name:        SP.name,
     id:          SP.id,
     level:       SP.level,
-    sessions:    SP.sessionCount,
-    tasksDone:   SP.tasksDone.length + ' / ' + taskList.length,
-    tasks:       taskList.map((t,i) => ({ task: t, completed: SP.tasksDone.includes(i) })),
+    sessionCount:SP.sessionCount,
+    tasksDone:   SP.tasksDone,
     resistors:   SP.resistors,
-    experiment:  KB.title,
-    exportedAt:  new Date().toLocaleString()
+    savedAt:     new Date().toISOString()
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
-  a.download = `profile_${SP.id}_${Date.now()}.json`;
+  a.download = `profile_${SP.id}.json`;
   a.click();
   URL.revokeObjectURL(url);
+  appendMsg('💾 Profile saved as profile_' + SP.id + '.json — upload this file next session to restore your progress.', 'system');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1036,14 +1053,10 @@ function markDone(idx) {
     appendMsg(`📊 Level updated to ${SP.level} — the session will now adapt to your progress.`, 'system');
   }
 
-  // Persist to localStorage on every task completion
-  saveProfile();
   updateCounter(); updateTaskCard(); renderProfile();
 }
 function renderProfile() {
   const el=document.getElementById('profile-inner');
-  const stored = localStorage.getItem('mrlab_profile_' + SP.id);
-  const savedAt = stored ? JSON.parse(stored).savedAt : null;
   el.innerHTML=`
     <div style="padding:12px 12px 0;">
     <div class="ps"><div class="ps-lbl">Student</div><div class="ps-val">${SP.name} (${SP.id})</div></div>
@@ -1055,16 +1068,16 @@ function renderProfile() {
         ${SP.level==='Expert'?'Maximum level reached ✓':''}
       </div>
     </div>
-    <div class="ps"><div class="ps-lbl">Experiment</div><div class="ps-val">${KB.title}</div></div>
     <div class="ps"><div class="ps-lbl">Sessions completed</div><div class="ps-val">${SP.sessionCount}</div></div>
+    <div class="ps"><div class="ps-lbl">Experiment</div><div class="ps-val">${KB.title}</div></div>
     ${scannedR?`<div class="ps"><div class="ps-lbl">Scanned Resistor</div><div class="res-chip"><div class="rc-val">${scannedR.value}</div><div class="rc-sub">${scannedR.tolerance} · ${scannedR.bands.join(' – ')}</div></div></div>`:''}
     <div class="ps"><div class="ps-lbl">Tasks</div><div style="display:flex;flex-direction:column;gap:5px;margin-top:4px;">
       ${taskList.map((t,i)=>`<div class="task-li${SP.tasksDone.includes(i)?' done':''}"><span>${SP.tasksDone.includes(i)?'✅':'○'}</span><span>${t}</span></div>`).join('')}
     </div></div>
     <div class="ps" style="background:rgba(0,255,157,.04);border-color:rgba(0,255,157,.15);">
-      <div class="ps-lbl">Profile storage</div>
-      <div style="font-family:var(--mono);font-size:11px;color:var(--accent2);">
-        ${savedAt ? '✓ Saved to device · ' + new Date(savedAt).toLocaleString() : '⚠ Not yet saved'}
+      <div class="ps-lbl">Save your progress</div>
+      <div style="font-size:11px;color:var(--dim);line-height:1.5;">
+        Download your profile file and upload it next session to restore your progress.
       </div>
     </div>
     </div>`;
@@ -1108,7 +1121,7 @@ async function callChat() {
   // LEVEL_UPDATE
   const li=reply.indexOf('LEVEL_UPDATE:');
   if(li>=0){const nl=reply.substring(li+13).split('\n')[0].trim();reply=reply.substring(0,li).trimEnd();
-    if(['Beginner','Intermediate','Expert'].includes(nl)&&nl!==SP.level){SP.level=nl;updateBadge();saveProfile();appendMsg(`📊 Level → ${nl}`,'system');}}
+    if(['Beginner','Intermediate','Expert'].includes(nl)&&nl!==SP.level){SP.level=nl;updateBadge();appendMsg(`📊 Level → ${nl}`,'system');}}
   // TASK_COMPLETE
   const ti=reply.indexOf('TASK_COMPLETE:');
   if(ti>=0){const tn=parseInt(reply.substring(ti+14).split('\n')[0].trim());reply=reply.substring(0,ti).trimEnd();if(!isNaN(tn))markDone(tn-1);}
